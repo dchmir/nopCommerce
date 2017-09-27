@@ -1,17 +1,14 @@
-﻿<p>
-    <h4>@T("Admin.Address.AddressAttributes")</h4>
-</p>
-<p>
-    <em>@T("Admin.Address.AddressAttributes.Description")</em>
-</p>
-<div>
-    <a href="@Url.Action("Create", "AddressAttribute")" class="k-button">@T("Admin.Common.AddNew")</a>
-</div>
-<table class="adminContent">
-    <tr>
-        <td>
-            <div id="addressattributes-grid"></div>
-            <script>
+﻿<div class="panel panel-default">
+    <div class="panel-heading">
+        @T("Admin.Address.AddressAttributes")
+    </div>
+    <div class="panel-body">
+        <p>
+            <em>@T("Admin.Address.AddressAttributes.Description")</em>
+        </p>
+        <div id="addressattributes-grid"></div>
+
+        <script>
                 $(document).ready(function () {
                     $("#addressattributes-grid").kendoGrid({
                         dataSource: {
@@ -42,10 +39,11 @@
                             refresh: true,
                             numeric: false,
                             previousNext: false,
-                            info: false
+                            info: false,
+                            @Html.Partial("_GridPagerMessages")
                         },
                         editable: {
-                            confirmation: false,
+                            confirmation: "@T("Admin.Common.DeleteConfirmation")",
                             mode: "inline"
                         },
                         scrollable: false,
@@ -63,7 +61,7 @@
                             width: 100,
                             headerAttributes: { style: "text-align:center" },
                             attributes: { style: "text-align:center" },
-                            template: '<img src="@Url.Content("~/Administration/Content/images/")active-#=IsRequired#.gif" />'
+                            template: '# if(IsRequired) {# <i class="fa fa-check true-icon"></i> #} else {# <i class="fa fa-close false-icon"></i> #} #'
                         }, {
                             field: "DisplayOrder",
                             title: "@T("Admin.Address.AddressAttributes.Fields.DisplayOrder")",
@@ -71,12 +69,19 @@
                         }, {
                             field: "Id",
                             title: "@T("Admin.Common.Edit")",
-                            width: 100,
-                            template: '<a href="@Url.Content("~/Admin/AddressAttribute/Edit/")#=Id#">@T("Admin.Common.Edit")</a>'
+                            width: 80,
+                            headerAttributes: { style: "text-align:center" },
+                            attributes: { style: "text-align:center" },
+                            template: '<a class="btn btn-default" href="@Url.Content("~/Admin/AddressAttribute/Edit/")#=Id#"><i class="fa fa-pencil"></i>@T("Admin.Common.Edit")</a>'
                         }]
                     });
                 });
-            </script>
-        </td>
-    </tr>
-</table>
+        </script>
+    </div>
+    <div class="panel-footer">
+        <a href="@Url.Action("Create", "AddressAttribute")" class="btn btn-primary">
+            <i class="fa fa-plus-square"></i>
+            @T("Admin.Common.AddNew")
+        </a>
+    </div>
+</div>

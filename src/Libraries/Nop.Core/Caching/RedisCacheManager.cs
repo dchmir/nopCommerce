@@ -15,22 +15,23 @@ namespace Nop.Core.Caching
     public partial class RedisCacheManager : ICacheManager
     {
         #region Fields
-
-        private readonly ConnectionMultiplexer _muxer;
+        private readonly IRedisConnectionWrapper _connectionWrapper;
         private readonly IDatabase _db;
         private readonly ICacheManager _perRequestCacheManager;
+
         #endregion
 
         #region Ctor
 
-        public RedisCacheManager(NopConfig config)
+        public RedisCacheManager(NopConfig config, IRedisConnectionWrapper connectionWrapper)
         {
             if (String.IsNullOrEmpty(config.RedisCachingConnectionString))
-                throw  new Exception("Redis connection string is empty");
+                throw new Exception("Redis connection string is empty");
 
-            this._muxer = ConnectionMultiplexer.Connect(config.RedisCachingConnectionString);
+            // ConnectionMultiplexer.Connect should only be called once and shared between callers
+            this._connectionWrapper = connectionWrapper;
 
-            this._db = _muxer.GetDatabase();
+            this._db = _connectionWrapper.GetDatabase();
             this._perRequestCacheManager = EngineContext.Current.Resolve<ICacheManager>();
         }
 
@@ -69,7 +70,7 @@ namespace Nop.Core.Caching
             //this way we won't connect to Redis server 500 times per HTTP request (e.g. each time to load a locale or setting)
             if (_perRequestCacheManager.IsSet(key))
                 return _perRequestCacheManager.Get<T>(key);
-            
+
             var rValue = _db.StringGet(key);
             if (!rValue.HasValue)
                 return default(T);
@@ -108,7 +109,7 @@ namespace Nop.Core.Caching
             //this way we won't connect to Redis server 500 times per HTTP request (e.g. each time to load a locale or setting)
             if (_perRequestCacheManager.IsSet(key))
                 return true;
-            
+
             return _db.KeyExists(key);
         }
 
@@ -119,6 +120,7 @@ namespace Nop.Core.Caching
         public virtual void Remove(string key)
         {
             _db.KeyDelete(key);
+            _perRequestCacheManager.Remove(key);
         }
 
         /// <summary>
@@ -127,12 +129,12 @@ namespace Nop.Core.Caching
         /// <param name="pattern">pattern</param>
         public virtual void RemoveByPattern(string pattern)
         {
-            foreach (var ep in _muxer.GetEndPoints())
+            foreach (var ep in _connectionWrapper.GetEndPoints())
             {
-                var server = _muxer.GetServer(ep);
-                var keys = server.Keys(pattern: "*" + pattern + "*");
+                var server = _connectionWrapper.GetServer(ep);
+                var keys = server.Keys(database: _db.Database, pattern: "*" + pattern + "*");
                 foreach (var key in keys)
-                    _db.KeyDelete(key);
+                    Remove(key);
             }
         }
 
@@ -141,17 +143,17 @@ namespace Nop.Core.Caching
         /// </summary>
         public virtual void Clear()
         {
-            foreach (var ep in _muxer.GetEndPoints())
+            foreach (var ep in _connectionWrapper.GetEndPoints())
             {
-                var server = _muxer.GetServer(ep);
-                //we can use the code belwo (commented)
+                var server = _connectionWrapper.GetServer(ep);
+                //we can use the code below (commented)
                 //but it requires administration permission - ",allowAdmin=true"
                 //server.FlushDatabase();
 
                 //that's why we simply interate through all elements now
-                var keys = server.Keys();
+                var keys = server.Keys(database: _db.Database);
                 foreach (var key in keys)
-                    _db.KeyDelete(key);
+                    Remove(key);
             }
         }
 
@@ -160,10 +162,11 @@ namespace Nop.Core.Caching
         /// </summary>
         public virtual void Dispose()
         {
-            if (_muxer != null)
-                _muxer.Dispose();
+            //if (_connectionWrapper != null)
+            //    _connectionWrapper.Dispose();
         }
 
         #endregion
+
     }
 }

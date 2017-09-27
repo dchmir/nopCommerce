@@ -53,6 +53,7 @@ namespace Nop.Services.Customers
         #region Fields
 
         private readonly IRepository<Customer> _customerRepository;
+        private readonly IRepository<CustomerPassword> _customerPasswordRepository;
         private readonly IRepository<CustomerRole> _customerRoleRepository;
         private readonly IRepository<GenericAttribute> _gaRepository;
         private readonly IRepository<Order> _orderRepository;
@@ -77,6 +78,7 @@ namespace Nop.Services.Customers
 
         public CustomerService(ICacheManager cacheManager,
             IRepository<Customer> customerRepository,
+            IRepository<CustomerPassword> customerPasswordRepository,
             IRepository<CustomerRole> customerRoleRepository,
             IRepository<GenericAttribute> gaRepository,
             IRepository<Order> orderRepository,
@@ -96,6 +98,7 @@ namespace Nop.Services.Customers
         {
             this._cacheManager = cacheManager;
             this._customerRepository = customerRepository;
+            this._customerPasswordRepository = customerPasswordRepository;
             this._customerRoleRepository = customerRoleRepository;
             this._gaRepository = gaRepository;
             this._orderRepository = orderRepository;
@@ -119,7 +122,7 @@ namespace Nop.Services.Customers
         #region Methods
 
         #region Customers
-        
+
         /// <summary>
         /// Gets all customers
         /// </summary>
@@ -137,6 +140,7 @@ namespace Nop.Services.Customers
         /// <param name="company">Company; null to load all customers</param>
         /// <param name="phone">Phone; null to load all customers</param>
         /// <param name="zipPostalCode">Phone; null to load all customers</param>
+        /// <param name="ipAddress">IP address; null to load all customers</param>
         /// <param name="loadOnlyWithShoppingCart">Value indicating whether to load customers only with shopping cart</param>
         /// <param name="sct">Value indicating what shopping cart type to filter; userd when 'loadOnlyWithShoppingCart' param is 'true'</param>
         /// <param name="pageIndex">Page index</param>
@@ -148,8 +152,8 @@ namespace Nop.Services.Customers
             string firstName = null, string lastName = null,
             int dayOfBirth = 0, int monthOfBirth = 0,
             string company = null, string phone = null, string zipPostalCode = null,
-            bool loadOnlyWithShoppingCart = false, ShoppingCartType? sct = null,
-            int pageIndex = 0, int pageSize = 2147483647)
+            string ipAddress = null, bool loadOnlyWithShoppingCart = false, ShoppingCartType? sct = null,
+            int pageIndex = 0, int pageSize = int.MaxValue)
         {
             var query = _customerRepository.Table;
             if (createdFromUtc.HasValue)
@@ -264,6 +268,12 @@ namespace Nop.Services.Customers
                     .Select(z => z.Customer);
             }
 
+            //search by IpAddress
+            if (!String.IsNullOrWhiteSpace(ipAddress) && CommonHelper.IsValidIpAddress(ipAddress))
+            {
+                    query = query.Where(w => w.LastIpAddress == ipAddress);
+            }
+
             if (loadOnlyWithShoppingCart)
             {
                 int? sctId = null;
@@ -278,22 +288,6 @@ namespace Nop.Services.Customers
             query = query.OrderByDescending(c => c.CreatedOnUtc);
 
             var customers = new PagedList<Customer>(query, pageIndex, pageSize);
-            return customers;
-        }
-
-        /// <summary>
-        /// Gets all customers by customer format (including deleted ones)
-        /// </summary>
-        /// <param name="passwordFormat">Password format</param>
-        /// <returns>Customers</returns>
-        public virtual IList<Customer> GetAllCustomersByPasswordFormat(PasswordFormat passwordFormat)
-        {
-            var passwordFormatId = (int)passwordFormat;
-
-            var query = _customerRepository.Table;
-            query = query.Where(c => c.PasswordFormatId == passwordFormatId);
-            query = query.OrderByDescending(c => c.CreatedOnUtc);
-            var customers = query.ToList();
             return customers;
         }
 
@@ -342,6 +336,9 @@ namespace Nop.Services.Customers
             }
 
             UpdateCustomer(customer);
+
+            //event notification
+            _eventPublisher.EntityDeleted(customer);
         }
 
         /// <summary>
@@ -368,7 +365,7 @@ namespace Nop.Services.Customers
                 return new List<Customer>();
 
             var query = from c in _customerRepository.Table
-                        where customerIds.Contains(c.Id)
+                        where customerIds.Contains(c.Id) && !c.Deleted
                         select c;
             var customers = query.ToList();
             //sort by passed identifiers
@@ -381,7 +378,7 @@ namespace Nop.Services.Customers
             }
             return sortedCustomers;
         }
-
+        
         /// <summary>
         /// Gets a customer by GUID
         /// </summary>
@@ -551,7 +548,7 @@ namespace Nop.Services.Customers
             {
                 _genericAttributeService.SaveAttribute<ShippingOption>(customer, SystemCustomerAttributeNames.SelectedShippingOption, null, storeId);
                 _genericAttributeService.SaveAttribute<ShippingOption>(customer, SystemCustomerAttributeNames.OfferedShippingOptions, null, storeId);
-                _genericAttributeService.SaveAttribute(customer, SystemCustomerAttributeNames.SelectedPickUpInStore, false, storeId);
+                _genericAttributeService.SaveAttribute<ShippingOption>(customer, SystemCustomerAttributeNames.SelectedPickupPoint, null, storeId);
             }
 
             //clear selected payment method
@@ -700,9 +697,7 @@ namespace Nop.Services.Customers
                     {
                         //delete attributes
                         var attributes = _genericAttributeService.GetAttributesForEntity(c.Id, "Customer");
-                        foreach (var attribute in attributes)
-                            _genericAttributeService.DeleteAttribute(attribute);
-
+                        _genericAttributeService.DeleteAttributes(attributes);
 
                         //delete from database
                         _customerRepository.Delete(c);
@@ -790,7 +785,7 @@ namespace Nop.Services.Customers
             {
                 var query = from cr in _customerRoleRepository.Table
                             orderby cr.Name
-                            where (showHidden || cr.Active)
+                            where showHidden || cr.Active
                             select cr;
                 var customerRoles = query.ToList();
                 return customerRoles;
@@ -829,6 +824,81 @@ namespace Nop.Services.Customers
 
             //event notification
             _eventPublisher.EntityUpdated(customerRole);
+        }
+
+        #endregion
+
+        #region Customer passwords
+
+        /// <summary>
+        /// Gets customer passwords
+        /// </summary>
+        /// <param name="customerId">Customer identifier; pass null to load all records</param>
+        /// <param name="passwordFormat">Password format; pass null to load all records</param>
+        /// <param name="passwordsToReturn">Number of returning passwords; pass null to load all records</param>
+        /// <returns>List of customer passwords</returns>
+        public virtual IList<CustomerPassword> GetCustomerPasswords(int? customerId = null, 
+            PasswordFormat? passwordFormat = null, int? passwordsToReturn = null)
+        {
+            var query = _customerPasswordRepository.Table;
+
+            //filter by customer
+            if (customerId.HasValue)
+                query = query.Where(password => password.CustomerId == customerId.Value);
+
+            //filter by password format
+            if (passwordFormat.HasValue)
+                query = query.Where(password => password.PasswordFormatId == (int)(passwordFormat.Value));
+
+            //get the latest passwords
+            if (passwordsToReturn.HasValue)
+                query = query.OrderByDescending(password => password.CreatedOnUtc).Take(passwordsToReturn.Value);
+
+            return query.ToList();
+        }
+
+        /// <summary>
+        /// Get current customer password
+        /// </summary>
+        /// <param name="customerId">Customer identifier</param>
+        /// <returns>Customer password</returns>
+        public virtual CustomerPassword GetCurrentPassword(int customerId)
+        {
+            if (customerId == 0)
+                return null;
+
+            //return the latest password
+            return GetCustomerPasswords(customerId, passwordsToReturn: 1).FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Insert a customer password
+        /// </summary>
+        /// <param name="customerPassword">Customer password</param>
+        public virtual void InsertCustomerPassword(CustomerPassword customerPassword)
+        {
+            if (customerPassword == null)
+                throw new ArgumentNullException("customerPassword");
+
+            _customerPasswordRepository.Insert(customerPassword);
+
+            //event notification
+            _eventPublisher.EntityInserted(customerPassword);
+        }
+
+        /// <summary>
+        /// Update a customer password
+        /// </summary>
+        /// <param name="customerPassword">Customer password</param>
+        public virtual void UpdateCustomerPassword(CustomerPassword customerPassword)
+        {
+            if (customerPassword == null)
+                throw new ArgumentNullException("customerPassword");
+
+            _customerPasswordRepository.Update(customerPassword);
+
+            //event notification
+            _eventPublisher.EntityUpdated(customerPassword);
         }
 
         #endregion

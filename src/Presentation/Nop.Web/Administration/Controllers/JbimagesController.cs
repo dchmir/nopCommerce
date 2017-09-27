@@ -16,13 +16,10 @@ namespace Nop.Admin.Controllers
     public partial class JbimagesController : BaseAdminController
     {
         private readonly IPermissionService _permissionService;
-        private readonly IWebHelper _webHelper;
 
-        public JbimagesController(IPermissionService permissionService,
-            IWebHelper webHelper)
+        public JbimagesController(IPermissionService permissionService)
         {
             this._permissionService = permissionService;
-            this._webHelper = webHelper;
         }
 
         [NonAction]
@@ -32,7 +29,7 @@ namespace Nop.Admin.Controllers
         }
 
         [HttpPost]
-        public ActionResult Upload()
+        public virtual ActionResult Upload()
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.HtmlEditorManagePictures))
             {
@@ -61,7 +58,7 @@ namespace Nop.Admin.Controllers
             }
 
             var directory = "~/content/images/uploaded/";
-            var filePath = Path.Combine(_webHelper.MapPath(directory), fileName);
+            var filePath = Path.Combine(CommonHelper.MapPath(directory), fileName);
 
             var fileExtension = Path.GetExtension(filePath);
             if (!GetAllowedFileTypes().Contains(fileExtension))

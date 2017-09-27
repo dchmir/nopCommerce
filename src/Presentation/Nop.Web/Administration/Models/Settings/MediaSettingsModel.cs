@@ -7,8 +7,6 @@ namespace Nop.Admin.Models.Settings
     {
         public int ActiveStoreScopeConfiguration { get; set; }
 
-
-
         [NopResourceDisplayName("Admin.Configuration.Settings.Media.PicturesStoredIntoDatabase")]
         public bool PicturesStoredIntoDatabase { get; set; }
 
@@ -64,5 +62,12 @@ namespace Nop.Admin.Models.Settings
         public int DefaultImageQuality { get; set; }
         public bool DefaultImageQuality_OverrideForStore { get; set; }
 
+        [NopResourceDisplayName("Admin.Configuration.Settings.Media.ImportProductImagesUsingHash")]
+        public bool ImportProductImagesUsingHash { get; set; }
+        public bool ImportProductImagesUsingHash_OverrideForStore { get; set; }
+
+        [NopResourceDisplayName("Admin.Configuration.Settings.Media.DefaultPictureZoomEnabled")]
+        public bool DefaultPictureZoomEnabled { get; set; }
+        public bool DefaultPictureZoomEnabled_OverrideForStore { get; set; }
     }
 }

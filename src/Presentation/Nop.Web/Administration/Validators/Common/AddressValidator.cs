@@ -5,7 +5,7 @@ using Nop.Web.Framework.Validators;
 
 namespace Nop.Admin.Validators.Common
 {
-    public class AddressValidator : BaseNopValidator<AddressModel>
+    public partial class AddressValidator : BaseNopValidator<AddressModel>
     {
         public AddressValidator(ILocalizationService localizationService)
         {
@@ -32,11 +32,11 @@ namespace Nop.Admin.Validators.Common
             RuleFor(x => x.CountryId)
                 .NotNull()
                 .WithMessage(localizationService.GetResource("Admin.Address.Fields.Country.Required"))
-                .When(x => x.CountryEnabled);
+                .When(x => x.CountryEnabled && x.CountryRequired);
             RuleFor(x => x.CountryId)
                 .NotEqual(0)
                 .WithMessage(localizationService.GetResource("Admin.Address.Fields.Country.Required"))
-                .When(x => x.CountryEnabled);
+                .When(x => x.CountryEnabled && x.CountryRequired);
             RuleFor(x => x.City)
                 .NotEmpty()
                 .WithMessage(localizationService.GetResource("Admin.Address.Fields.City.Required"))

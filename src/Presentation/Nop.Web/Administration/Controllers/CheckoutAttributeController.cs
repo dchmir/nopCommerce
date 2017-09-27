@@ -25,6 +25,7 @@ namespace Nop.Admin.Controllers
         #region Fields
 
         private readonly ICheckoutAttributeService _checkoutAttributeService;
+        private readonly ICheckoutAttributeParser _checkoutAttributeParser;
         private readonly ILanguageService _languageService;
         private readonly ILocalizedEntityService _localizedEntityService;
         private readonly ILocalizationService _localizationService;
@@ -44,6 +45,7 @@ namespace Nop.Admin.Controllers
         #region Constructors
 
         public CheckoutAttributeController(ICheckoutAttributeService checkoutAttributeService,
+            ICheckoutAttributeParser checkoutAttributeParser,
             ILanguageService languageService, 
             ILocalizedEntityService localizedEntityService,
             ILocalizationService localizationService,
@@ -59,6 +61,7 @@ namespace Nop.Admin.Controllers
             IStoreMappingService storeMappingService)
         {
             this._checkoutAttributeService = checkoutAttributeService;
+            this._checkoutAttributeParser = checkoutAttributeParser;
             this._languageService = languageService;
             this._localizedEntityService = localizedEntityService;
             this._localizationService = localizationService;
@@ -115,7 +118,7 @@ namespace Nop.Admin.Controllers
 
             //tax categories
             var taxCategories = _taxCategoryService.GetAllTaxCategories();
-            model.AvailableTaxCategories.Add(new SelectListItem { Text = "---", Value = "0" });
+            model.AvailableTaxCategories.Add(new SelectListItem { Text = _localizationService.GetResource("Admin.Configuration.Settings.Tax.TaxCategories.None"), Value = "0" });
             foreach (var tc in taxCategories)
                 model.AvailableTaxCategories.Add(new SelectListItem { Text = tc.Name, Value = tc.Id.ToString(), Selected = checkoutAttribute != null && !excludeProperties && tc.Id == checkoutAttribute.TaxCategoryId });
         }
@@ -126,27 +129,31 @@ namespace Nop.Admin.Controllers
             if (model == null)
                 throw new ArgumentNullException("model");
 
-            model.AvailableStores = _storeService
-                .GetAllStores()
-                .Select(s => s.ToModel())
-                .ToList();
-            if (!excludeProperties)
+            if (!excludeProperties && checkoutAttribute != null)
+                model.SelectedStoreIds = _storeMappingService.GetStoresIdsWithAccess(checkoutAttribute).ToList();
+
+            var allStores = _storeService.GetAllStores();
+            foreach (var store in allStores)
             {
-                if (checkoutAttribute != null)
+                model.AvailableStores.Add(new SelectListItem
                 {
-                    model.SelectedStoreIds = _storeMappingService.GetStoresIdsWithAccess(checkoutAttribute);
-                }
+                    Text = store.Name,
+                    Value = store.Id.ToString(),
+                    Selected = model.SelectedStoreIds.Contains(store.Id)
+                });
             }
         }
 
         [NonAction]
         protected virtual void SaveStoreMappings(CheckoutAttribute checkoutAttribute, CheckoutAttributeModel model)
         {
+            checkoutAttribute.LimitedToStores = model.SelectedStoreIds.Any();
+
             var existingStoreMappings = _storeMappingService.GetStoreMappings(checkoutAttribute);
             var allStores = _storeService.GetAllStores();
             foreach (var store in allStores)
             {
-                if (model.SelectedStoreIds != null && model.SelectedStoreIds.Contains(store.Id))
+                if (model.SelectedStoreIds.Contains(store.Id))
                 {
                     //new store
                     if (existingStoreMappings.Count(sm => sm.StoreId == store.Id) == 0)
@@ -162,17 +169,106 @@ namespace Nop.Admin.Controllers
             }
         }
 
+        [NonAction]
+        protected virtual void PrepareConditionAttributes(CheckoutAttributeModel model, CheckoutAttribute checkoutAttribute)
+        {
+            if (model == null)
+                throw new ArgumentNullException("model");
+
+            //currently any checkout attribute can have condition.
+            model.ConditionAllowed = true;
+
+            if (checkoutAttribute == null)
+                return;
+
+            var selectedAttribute = _checkoutAttributeParser.ParseCheckoutAttributes(checkoutAttribute.ConditionAttributeXml).FirstOrDefault();
+            var selectedValues = _checkoutAttributeParser.ParseCheckoutAttributeValues(checkoutAttribute.ConditionAttributeXml);
+
+            model.ConditionModel = new ConditionModel()
+            {
+                EnableCondition = !string.IsNullOrEmpty(checkoutAttribute.ConditionAttributeXml),
+                SelectedAttributeId = selectedAttribute != null ? selectedAttribute.Id : 0,
+                ConditionAttributes = _checkoutAttributeService.GetAllCheckoutAttributes()
+                    //ignore this attribute and non-combinable attributes
+                    .Where(x => x.Id != checkoutAttribute.Id && x.CanBeUsedAsCondition())
+                    .Select(x =>
+                        new AttributeConditionModel()
+                        {
+                            Id = x.Id,
+                            Name = x.Name,
+                            AttributeControlType = x.AttributeControlType,
+                            Values = _checkoutAttributeService.GetCheckoutAttributeValues(x.Id)
+                                .Select(v => new SelectListItem() { Text = v.Name, Value = v.Id.ToString(),
+                                    Selected = selectedAttribute != null && selectedAttribute.Id == x.Id && selectedValues.Any(sv => sv.Id == v.Id) }).ToList()
+                        }).ToList()
+            };
+        }
+
+        [NonAction]
+        protected virtual void SaveConditionAttributes(CheckoutAttribute checkoutAttribute, CheckoutAttributeModel model)
+        {
+            string attributesXml = null;
+            if (model.ConditionModel.EnableCondition)
+            {
+                var attribute = _checkoutAttributeService.GetCheckoutAttributeById(model.ConditionModel.SelectedAttributeId);
+                if (attribute != null)
+                {
+                    switch (attribute.AttributeControlType)
+                    {
+                        case AttributeControlType.DropdownList:
+                        case AttributeControlType.RadioList:
+                        case AttributeControlType.ColorSquares:
+                        case AttributeControlType.ImageSquares:
+                            {
+                                var selectedAttribute = model.ConditionModel.ConditionAttributes
+                                    .FirstOrDefault(x => x.Id == model.ConditionModel.SelectedAttributeId);
+                                var selectedValue = selectedAttribute != null ? selectedAttribute.SelectedValueId : null;
+                                if (!String.IsNullOrEmpty(selectedValue))
+                                    attributesXml = _checkoutAttributeParser.AddCheckoutAttribute(attributesXml, attribute, selectedValue);
+                                else
+                                    //for conditions we should empty values save even when nothing is selected
+                                    //otherwise "attributesXml" will be empty
+                                    //hence we won't be able to find a selected attribute
+                                    attributesXml = _checkoutAttributeParser.AddCheckoutAttribute(attributesXml, attribute, string.Empty);
+                            }
+                            break;
+                        case AttributeControlType.Checkboxes:
+                            {
+                                var selectedAttribute = model.ConditionModel.ConditionAttributes
+                                    .FirstOrDefault(x => x.Id == model.ConditionModel.SelectedAttributeId);
+                                var selectedValues = selectedAttribute != null ? selectedAttribute.Values.Where(x => x.Selected).Select(x => x.Value) : null;
+                                if (selectedValues.Any())
+                                    foreach (var value in selectedValues)
+                                        attributesXml = _checkoutAttributeParser.AddCheckoutAttribute(attributesXml, attribute, value);
+                                else
+                                    attributesXml = _checkoutAttributeParser.AddCheckoutAttribute(attributesXml, attribute, string.Empty);
+                            }
+                            break;
+                        case AttributeControlType.ReadonlyCheckboxes:
+                        case AttributeControlType.TextBox:
+                        case AttributeControlType.MultilineTextbox:
+                        case AttributeControlType.Datepicker:
+                        case AttributeControlType.FileUpload:
+                        default:
+                            //these attribute types are not supported as conditions
+                            break;
+                    }
+                }
+            }
+            checkoutAttribute.ConditionAttributeXml = attributesXml;
+        }
+
         #endregion
         
         #region Checkout attributes
 
         //list
-        public ActionResult Index()
+        public virtual ActionResult Index()
         {
             return RedirectToAction("List");
         }
 
-        public ActionResult List()
+        public virtual ActionResult List()
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
                 return AccessDeniedView();
@@ -181,10 +277,10 @@ namespace Nop.Admin.Controllers
         }
 
         [HttpPost]
-        public ActionResult List(DataSourceRequest command)
+        public virtual ActionResult List(DataSourceRequest command)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
-                return AccessDeniedView();
+                return AccessDeniedKendoGridJson();
 
             var checkoutAttributes = _checkoutAttributeService.GetAllCheckoutAttributes();
             var gridModel = new DataSourceResult
@@ -201,7 +297,7 @@ namespace Nop.Admin.Controllers
         }
         
         //create
-        public ActionResult Create()
+        public virtual ActionResult Create()
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
                 return AccessDeniedView();
@@ -213,11 +309,13 @@ namespace Nop.Admin.Controllers
             PrepareTaxCategories(model, null, true);
             //Stores
             PrepareStoresMappingModel(model, null, false);
+            //condition
+            PrepareConditionAttributes(model, null);
             return View(model);
         }
 
         [HttpPost, ParameterBasedOnFormName("save-continue", "continueEditing")]
-        public ActionResult Create(CheckoutAttributeModel model, bool continueEditing)
+        public virtual ActionResult Create(CheckoutAttributeModel model, bool continueEditing)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
                 return AccessDeniedView();
@@ -235,7 +333,15 @@ namespace Nop.Admin.Controllers
                 _customerActivityService.InsertActivity("AddNewCheckoutAttribute", _localizationService.GetResource("ActivityLog.AddNewCheckoutAttribute"), checkoutAttribute.Name);
 
                 SuccessNotification(_localizationService.GetResource("Admin.Catalog.Attributes.CheckoutAttributes.Added"));
-                return continueEditing ? RedirectToAction("Edit", new { id = checkoutAttribute.Id }) : RedirectToAction("List");
+
+                if (continueEditing)
+                {
+                    //selected tab
+                    SaveSelectedTabName();
+
+                    return RedirectToAction("Edit", new { id = checkoutAttribute.Id });
+                }
+                return RedirectToAction("List");
             }
 
             //If we got this far, something failed, redisplay form
@@ -248,7 +354,7 @@ namespace Nop.Admin.Controllers
         }
 
         //edit
-        public ActionResult Edit(int id)
+        public virtual ActionResult Edit(int id)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
                 return AccessDeniedView();
@@ -269,12 +375,14 @@ namespace Nop.Admin.Controllers
             PrepareTaxCategories(model, checkoutAttribute, false);
             //Stores
             PrepareStoresMappingModel(model, checkoutAttribute, false);
+            //condition
+            PrepareConditionAttributes(model, checkoutAttribute);
 
             return View(model);
         }
 
         [HttpPost, ParameterBasedOnFormName("save-continue", "continueEditing")]
-        public ActionResult Edit(CheckoutAttributeModel model, bool continueEditing)
+        public virtual ActionResult Edit(CheckoutAttributeModel model, bool continueEditing)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
                 return AccessDeniedView();
@@ -287,6 +395,7 @@ namespace Nop.Admin.Controllers
             if (ModelState.IsValid)
             {
                 checkoutAttribute = model.ToEntity(checkoutAttribute);
+                SaveConditionAttributes(checkoutAttribute, model);
                 _checkoutAttributeService.UpdateCheckoutAttribute(checkoutAttribute);
                 //locales
                 UpdateAttributeLocales(checkoutAttribute, model);
@@ -300,7 +409,7 @@ namespace Nop.Admin.Controllers
                 if (continueEditing)
                 {
                     //selected tab
-                    SaveSelectedTabIndex();
+                    SaveSelectedTabName();
 
                     return RedirectToAction("Edit", new {id = checkoutAttribute.Id});
                 }
@@ -319,7 +428,7 @@ namespace Nop.Admin.Controllers
 
         //delete
         [HttpPost]
-        public ActionResult Delete(int id)
+        public virtual ActionResult Delete(int id)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
                 return AccessDeniedView();
@@ -340,10 +449,10 @@ namespace Nop.Admin.Controllers
 
         //list
         [HttpPost]
-        public ActionResult ValueList(int checkoutAttributeId, DataSourceRequest command)
+        public virtual ActionResult ValueList(int checkoutAttributeId, DataSourceRequest command)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
-                return AccessDeniedView();
+                return AccessDeniedKendoGridJson();
 
             var values = _checkoutAttributeService.GetCheckoutAttributeValues(checkoutAttributeId);
             var gridModel = new DataSourceResult
@@ -365,7 +474,7 @@ namespace Nop.Admin.Controllers
         }
 
         //create
-        public ActionResult ValueCreatePopup(int checkoutAttributeId)
+        public virtual ActionResult ValueCreatePopup(int checkoutAttributeId)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
                 return AccessDeniedView();
@@ -386,7 +495,7 @@ namespace Nop.Admin.Controllers
         }
 
         [HttpPost]
-        public ActionResult ValueCreatePopup(string btnId, string formId, CheckoutAttributeValueModel model)
+        public virtual ActionResult ValueCreatePopup(string btnId, string formId, CheckoutAttributeValueModel model)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
                 return AccessDeniedView();
@@ -442,7 +551,7 @@ namespace Nop.Admin.Controllers
         }
 
         //edit
-        public ActionResult ValueEditPopup(int id)
+        public virtual ActionResult ValueEditPopup(int id)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
                 return AccessDeniedView();
@@ -476,7 +585,7 @@ namespace Nop.Admin.Controllers
         }
 
         [HttpPost]
-        public ActionResult ValueEditPopup(string btnId, string formId, CheckoutAttributeValueModel model)
+        public virtual ActionResult ValueEditPopup(string btnId, string formId, CheckoutAttributeValueModel model)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
                 return AccessDeniedView();
@@ -529,7 +638,7 @@ namespace Nop.Admin.Controllers
 
         //delete
         [HttpPost]
-        public ActionResult ValueDelete(int id)
+        public virtual ActionResult ValueDelete(int id)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageAttributes))
                 return AccessDeniedView();

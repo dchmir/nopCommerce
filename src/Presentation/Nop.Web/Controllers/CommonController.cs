@@ -1,46 +1,26 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text;
 using System.Web.Mvc;
 using Nop.Core;
-using Nop.Core.Caching;
 using Nop.Core.Domain;
-using Nop.Core.Domain.Blogs;
-using Nop.Core.Domain.Catalog;
 using Nop.Core.Domain.Common;
 using Nop.Core.Domain.Customers;
-using Nop.Core.Domain.Forums;
 using Nop.Core.Domain.Localization;
 using Nop.Core.Domain.Messages;
-using Nop.Core.Domain.News;
-using Nop.Core.Domain.Orders;
 using Nop.Core.Domain.Tax;
 using Nop.Core.Domain.Vendors;
-using Nop.Services.Catalog;
 using Nop.Services.Common;
-using Nop.Services.Customers;
 using Nop.Services.Directory;
-using Nop.Services.Forums;
 using Nop.Services.Localization;
 using Nop.Services.Logging;
 using Nop.Services.Messages;
-using Nop.Services.Orders;
-using Nop.Services.Security;
-using Nop.Services.Seo;
-using Nop.Services.Topics;
 using Nop.Services.Vendors;
-using Nop.Web.Extensions;
+using Nop.Web.Factories;
 using Nop.Web.Framework;
 using Nop.Web.Framework.Localization;
 using Nop.Web.Framework.Security;
 using Nop.Web.Framework.Security.Captcha;
 using Nop.Web.Framework.Themes;
-using Nop.Web.Infrastructure.Cache;
-using Nop.Web.Models.Catalog;
 using Nop.Web.Models.Common;
-using Nop.Web.Models.Topics;
 
 namespace Nop.Web.Controllers
 {
@@ -48,10 +28,7 @@ namespace Nop.Web.Controllers
     {
         #region Fields
 
-        private readonly ICategoryService _categoryService;
-        private readonly IProductService _productService;
-        private readonly IManufacturerService _manufacturerService;
-        private readonly ITopicService _topicService;
+        private readonly ICommonModelFactory _commonModelFactory;
         private readonly ILanguageService _languageService;
         private readonly ICurrencyService _currencyService;
         private readonly ILocalizationService _localizationService;
@@ -59,26 +36,16 @@ namespace Nop.Web.Controllers
         private readonly IStoreContext _storeContext;
         private readonly IQueuedEmailService _queuedEmailService;
         private readonly IEmailAccountService _emailAccountService;
-        private readonly ISitemapGenerator _sitemapGenerator;
         private readonly IThemeContext _themeContext;
-        private readonly IThemeProvider _themeProvider;
-        private readonly IForumService _forumservice;
         private readonly IGenericAttributeService _genericAttributeService;
-        private readonly IWebHelper _webHelper;
-        private readonly IPermissionService _permissionService;
-        private readonly ICacheManager _cacheManager;
         private readonly ICustomerActivityService _customerActivityService;
         private readonly IVendorService _vendorService;
+        private readonly IWorkflowMessageService _workflowMessageService;
 
-        private readonly CustomerSettings _customerSettings;
         private readonly TaxSettings _taxSettings;
-        private readonly CatalogSettings _catalogSettings;
         private readonly StoreInformationSettings _storeInformationSettings;
         private readonly EmailAccountSettings _emailAccountSettings;
         private readonly CommonSettings _commonSettings;
-        private readonly BlogSettings _blogSettings;
-        private readonly NewsSettings _newsSettings;
-        private readonly ForumSettings _forumSettings;
         private readonly LocalizationSettings _localizationSettings;
         private readonly CaptchaSettings _captchaSettings;
         private readonly VendorSettings _vendorSettings;
@@ -87,44 +54,28 @@ namespace Nop.Web.Controllers
 
         #region Constructors
 
-        public CommonController(ICategoryService categoryService,
-            IProductService productService,
-            IManufacturerService manufacturerService,
-            ITopicService topicService,
+        public CommonController(ICommonModelFactory commonModelFactory,
             ILanguageService languageService,
             ICurrencyService currencyService,
             ILocalizationService localizationService,
-            IWorkContext workContext, 
+            IWorkContext workContext,
             IStoreContext storeContext,
-            IQueuedEmailService queuedEmailService, 
+            IQueuedEmailService queuedEmailService,
             IEmailAccountService emailAccountService,
-            ISitemapGenerator sitemapGenerator,
             IThemeContext themeContext,
-            IThemeProvider themeProvider,
-            IForumService forumService,
-            IGenericAttributeService genericAttributeService, 
-            IWebHelper webHelper,
-            IPermissionService permissionService,
-            ICacheManager cacheManager,
+            IGenericAttributeService genericAttributeService,
             ICustomerActivityService customerActivityService,
             IVendorService vendorService,
-            CustomerSettings customerSettings, 
-            TaxSettings taxSettings, 
-            CatalogSettings catalogSettings,
+            IWorkflowMessageService workflowMessageService,
+            TaxSettings taxSettings,
             StoreInformationSettings storeInformationSettings,
             EmailAccountSettings emailAccountSettings,
-            CommonSettings commonSettings, 
-            BlogSettings blogSettings, 
-            NewsSettings newsSettings,
-            ForumSettings forumSettings,
-            LocalizationSettings localizationSettings, 
+            CommonSettings commonSettings,
+            LocalizationSettings localizationSettings,
             CaptchaSettings captchaSettings,
             VendorSettings vendorSettings)
         {
-            this._categoryService = categoryService;
-            this._productService = productService;
-            this._manufacturerService = manufacturerService;
-            this._topicService = topicService;
+            this._commonModelFactory = commonModelFactory;
             this._languageService = languageService;
             this._currencyService = currencyService;
             this._localizationService = localizationService;
@@ -132,26 +83,16 @@ namespace Nop.Web.Controllers
             this._storeContext = storeContext;
             this._queuedEmailService = queuedEmailService;
             this._emailAccountService = emailAccountService;
-            this._sitemapGenerator = sitemapGenerator;
             this._themeContext = themeContext;
-            this._themeProvider = themeProvider;
-            this._forumservice = forumService;
             this._genericAttributeService = genericAttributeService;
-            this._webHelper = webHelper;
-            this._permissionService = permissionService;
-            this._cacheManager = cacheManager;
             this._customerActivityService = customerActivityService;
             this._vendorService = vendorService;
+            this._workflowMessageService = workflowMessageService;
 
-            this._customerSettings = customerSettings;
             this._taxSettings = taxSettings;
-            this._catalogSettings = catalogSettings;
             this._storeInformationSettings = storeInformationSettings;
             this._emailAccountSettings = emailAccountSettings;
             this._commonSettings = commonSettings;
-            this._blogSettings = blogSettings;
-            this._newsSettings = newsSettings;
-            this._forumSettings = forumSettings;
             this._localizationSettings = localizationSettings;
             this._captchaSettings = captchaSettings;
             this._vendorSettings = vendorSettings;
@@ -159,64 +100,31 @@ namespace Nop.Web.Controllers
 
         #endregion
 
-        #region Utilities
-
-        [NonAction]
-        protected virtual int GetUnreadPrivateMessages()
-        {
-            var result = 0;
-            var customer = _workContext.CurrentCustomer;
-            if (_forumSettings.AllowPrivateMessages && !customer.IsGuest())
-            {
-                var privateMessages = _forumservice.GetAllPrivateMessages(_storeContext.CurrentStore.Id,
-                    0, customer.Id, false, null, false, string.Empty, 0, 1);
-
-                if (privateMessages.TotalCount > 0)
-                {
-                    result = privateMessages.TotalCount;
-                }
-            }
-
-            return result;
-        }
-
-        #endregion
-
         #region Methods
 
         //page not found
-        public ActionResult PageNotFound()
+        public virtual ActionResult PageNotFound()
         {
             this.Response.StatusCode = 404;
             this.Response.TrySkipIisCustomErrors = true;
+            this.Response.ContentType = "text/html";
 
             return View();
         }
 
+        //logo
+        [ChildActionOnly]
+        public virtual ActionResult Logo()
+        {
+            var model = _commonModelFactory.PrepareLogoModel();
+            return PartialView(model);
+        }
+
         //language
         [ChildActionOnly]
-        public ActionResult LanguageSelector()
+        public virtual ActionResult LanguageSelector()
         {
-            var availableLanguages = _cacheManager.Get(string.Format(ModelCacheEventConsumer.AVAILABLE_LANGUAGES_MODEL_KEY, _storeContext.CurrentStore.Id), () =>
-            {
-                var result = _languageService
-                    .GetAllLanguages(storeId: _storeContext.CurrentStore.Id)
-                    .Select(x => new LanguageModel
-                    {
-                        Id = x.Id,
-                        Name = x.Name,
-                        FlagImageFileName = x.FlagImageFileName,
-                    })
-                    .ToList();
-                return result;
-            });
-
-            var model = new LanguageSelectorModel
-            {
-                CurrentLanguageId = _workContext.WorkingLanguage.Id,
-                AvailableLanguages = availableLanguages,
-                UseImages = _localizationSettings.UseImagesForLanguageSelection
-            };
+            var model = _commonModelFactory.PrepareLanguageSelectorModel();
 
             if (model.AvailableLanguages.Count == 1)
                 Content("");
@@ -227,7 +135,7 @@ namespace Nop.Web.Controllers
         [StoreClosed(true)]
         //available even when navigation is not allowed
         [PublicStoreAllowNavigation(true)]
-        public ActionResult SetLanguage(int langid, string returnUrl = "")
+        public virtual ActionResult SetLanguage(int langid, string returnUrl = "")
         {
             var language = _languageService.GetLanguageById(langid);
             if (language != null && language.Published)
@@ -242,7 +150,7 @@ namespace Nop.Web.Controllers
             //prevent open redirection attack
             if (!Url.IsLocalUrl(returnUrl))
                 returnUrl = Url.RouteUrl("HomePage");
-            
+
             //language part in URL
             if (_localizationSettings.SeoFriendlyUrlsForLanguagesEnabled)
             {
@@ -259,39 +167,9 @@ namespace Nop.Web.Controllers
 
         //currency
         [ChildActionOnly]
-        public ActionResult CurrencySelector()
+        public virtual ActionResult CurrencySelector()
         {
-            var availableCurrencies = _cacheManager.Get(string.Format(ModelCacheEventConsumer.AVAILABLE_CURRENCIES_MODEL_KEY, _workContext.WorkingLanguage.Id, _storeContext.CurrentStore.Id), () =>
-            {
-                var result = _currencyService
-                    .GetAllCurrencies(storeId: _storeContext.CurrentStore.Id)
-                    .Select(x =>
-                    {
-                        //currency char
-                        var currencySymbol = "";
-                        if (!string.IsNullOrEmpty(x.DisplayLocale))
-                            currencySymbol = new RegionInfo(x.DisplayLocale).CurrencySymbol;
-                        else
-                            currencySymbol = x.CurrencyCode;
-                        //model
-                        var currencyModel = new CurrencyModel
-                        {
-                            Id = x.Id,
-                            Name = x.GetLocalized(y => y.Name),
-                            CurrencySymbol = currencySymbol
-                        };
-                        return currencyModel;
-                    })
-                    .ToList();
-                return result;
-            });
-
-            var model = new CurrencySelectorModel
-            {
-                CurrentCurrencyId = _workContext.WorkingCurrency.Id,
-                AvailableCurrencies = availableCurrencies
-            };
-
+            var model = _commonModelFactory.PrepareCurrencySelectorModel();
             if (model.AvailableCurrencies.Count == 1)
                 Content("");
 
@@ -299,7 +177,7 @@ namespace Nop.Web.Controllers
         }
         //available even when navigation is not allowed
         [PublicStoreAllowNavigation(true)]
-        public ActionResult SetCurrency(int customerCurrency, string returnUrl = "")
+        public virtual ActionResult SetCurrency(int customerCurrency, string returnUrl = "")
         {
             var currency = _currencyService.GetCurrencyById(customerCurrency);
             if (currency != null)
@@ -308,7 +186,7 @@ namespace Nop.Web.Controllers
             //home page
             if (String.IsNullOrEmpty(returnUrl))
                 returnUrl = Url.RouteUrl("HomePage");
-            
+
             //prevent open redirection attack
             if (!Url.IsLocalUrl(returnUrl))
                 returnUrl = Url.RouteUrl("HomePage");
@@ -318,21 +196,17 @@ namespace Nop.Web.Controllers
 
         //tax type
         [ChildActionOnly]
-        public ActionResult TaxTypeSelector()
+        public virtual ActionResult TaxTypeSelector()
         {
             if (!_taxSettings.AllowCustomersToSelectTaxDisplayType)
                 return Content("");
 
-            var model = new TaxTypeSelectorModel
-            {
-                CurrentTaxType = _workContext.TaxDisplayType
-            };
-
+            var model = _commonModelFactory.PrepareTaxTypeSelectorModel();
             return PartialView(model);
         }
         //available even when navigation is not allowed
         [PublicStoreAllowNavigation(true)]
-        public ActionResult SetTaxType(int customerTaxType, string returnUrl = "")
+        public virtual ActionResult SetTaxType(int customerTaxType, string returnUrl = "")
         {
             var taxDisplayType = (TaxDisplayType)Enum.ToObject(typeof(TaxDisplayType), customerTaxType);
             _workContext.TaxDisplayType = taxDisplayType;
@@ -347,10 +221,10 @@ namespace Nop.Web.Controllers
 
             return Redirect(returnUrl);
         }
-        
+
         //footer
         [ChildActionOnly]
-        public ActionResult JavaScriptDisabledWarning()
+        public virtual ActionResult JavaScriptDisabledWarning()
         {
             if (!_commonSettings.DisplayJavaScriptDisabledWarning)
                 return Content("");
@@ -360,116 +234,33 @@ namespace Nop.Web.Controllers
 
         //header links
         [ChildActionOnly]
-        public ActionResult HeaderLinks()
+        public virtual ActionResult HeaderLinks()
         {
-            var customer = _workContext.CurrentCustomer;
-
-            var unreadMessageCount = GetUnreadPrivateMessages();
-            var unreadMessage = string.Empty;
-            var alertMessage = string.Empty;
-            if (unreadMessageCount > 0)
-            {
-                unreadMessage = string.Format(_localizationService.GetResource("PrivateMessages.TotalUnread"), unreadMessageCount);
-
-                //notifications here
-                if (_forumSettings.ShowAlertForPM &&
-                    !customer.GetAttribute<bool>(SystemCustomerAttributeNames.NotifiedAboutNewPrivateMessages, _storeContext.CurrentStore.Id))
-                {
-                    _genericAttributeService.SaveAttribute(customer, SystemCustomerAttributeNames.NotifiedAboutNewPrivateMessages, true, _storeContext.CurrentStore.Id);
-                    alertMessage = string.Format(_localizationService.GetResource("PrivateMessages.YouHaveUnreadPM"), unreadMessageCount);
-                }
-            }
-
-            var model = new HeaderLinksModel
-            {
-                IsAuthenticated = customer.IsRegistered(),
-                CustomerEmailUsername = customer.IsRegistered() ? (_customerSettings.UsernamesEnabled ? customer.Username : customer.Email) : "",
-                ShoppingCartEnabled = _permissionService.Authorize(StandardPermissionProvider.EnableShoppingCart),
-                WishlistEnabled = _permissionService.Authorize(StandardPermissionProvider.EnableWishlist),
-                AllowPrivateMessages = customer.IsRegistered() && _forumSettings.AllowPrivateMessages,
-                UnreadPrivateMessages = unreadMessage,
-                AlertMessage = alertMessage,
-            };
-            //performance optimization (use "HasShoppingCartItems" property)
-            if (customer.HasShoppingCartItems)
-            {
-                model.ShoppingCartItems = customer.ShoppingCartItems
-                    .Where(sci => sci.ShoppingCartType == ShoppingCartType.ShoppingCart)
-                    .LimitPerStore(_storeContext.CurrentStore.Id)
-                    .ToList()
-                    .GetTotalProducts();
-                model.WishlistItems = customer.ShoppingCartItems
-                    .Where(sci => sci.ShoppingCartType == ShoppingCartType.Wishlist)
-                    .LimitPerStore(_storeContext.CurrentStore.Id)
-                    .ToList()
-                    .GetTotalProducts();
-            }
-
+            var model = _commonModelFactory.PrepareHeaderLinksModel();
             return PartialView(model);
         }
         [ChildActionOnly]
-        public ActionResult AdminHeaderLinks()
+        public virtual ActionResult AdminHeaderLinks()
         {
-            var customer = _workContext.CurrentCustomer;
-
-            var model = new AdminHeaderLinksModel
-            {
-                ImpersonatedCustomerEmailUsername = customer.IsRegistered() ? (_customerSettings.UsernamesEnabled ? customer.Username : customer.Email) : "",
-                IsCustomerImpersonated = _workContext.OriginalCustomerIfImpersonated != null,
-                DisplayAdminLink = _permissionService.Authorize(StandardPermissionProvider.AccessAdminPanel),
-            };
-
+            var model = _commonModelFactory.PrepareAdminHeaderLinksModel();
             return PartialView(model);
         }
+
+
+        //social
+        [ChildActionOnly]
+        public virtual ActionResult Social()
+        {
+            var model = _commonModelFactory.PrepareSocialModel();
+            return PartialView(model);
+        }
+
 
         //footer
         [ChildActionOnly]
-        public ActionResult Footer()
+        public virtual ActionResult Footer()
         {
-            //footer topics
-            string topicCacheKey = string.Format(ModelCacheEventConsumer.TOPIC_FOOTER_MODEL_KEY,
-                _workContext.WorkingLanguage.Id, 
-                _storeContext.CurrentStore.Id,
-                string.Join(",", _workContext.CurrentCustomer.GetCustomerRoleIds()));
-            var cachedTopicModel = _cacheManager.Get(topicCacheKey, () =>
-                _topicService.GetAllTopics(_storeContext.CurrentStore.Id)
-                .Where(t => t.IncludeInFooterColumn1 || t.IncludeInFooterColumn2 || t.IncludeInFooterColumn3)
-                .Select(t => new FooterModel.FooterTopicModel
-                {
-                    Id = t.Id,
-                    Name = t.GetLocalized(x => x.Title),
-                    SeName = t.GetSeName(),
-                    IncludeInFooterColumn1 = t.IncludeInFooterColumn1,
-                    IncludeInFooterColumn2 = t.IncludeInFooterColumn2,
-                    IncludeInFooterColumn3 = t.IncludeInFooterColumn3
-                })
-                .ToList()
-            );
-
-            //model
-            var model = new FooterModel
-            {
-                StoreName = _storeContext.CurrentStore.GetLocalized(x => x.Name),
-                WishlistEnabled = _permissionService.Authorize(StandardPermissionProvider.EnableWishlist),
-                ShoppingCartEnabled = _permissionService.Authorize(StandardPermissionProvider.EnableShoppingCart),
-                SitemapEnabled = _commonSettings.SitemapEnabled,
-                WorkingLanguageId = _workContext.WorkingLanguage.Id,
-                FacebookLink = _storeInformationSettings.FacebookLink,
-                TwitterLink = _storeInformationSettings.TwitterLink,
-                YoutubeLink = _storeInformationSettings.YoutubeLink,
-                GooglePlusLink = _storeInformationSettings.GooglePlusLink,
-                BlogEnabled = _blogSettings.Enabled,
-                CompareProductsEnabled = _catalogSettings.CompareProductsEnabled,
-                ForumEnabled = _forumSettings.ForumsEnabled,
-                NewsEnabled = _newsSettings.Enabled,
-                RecentlyViewedProductsEnabled = _catalogSettings.RecentlyViewedProductsEnabled,
-                NewProductsEnabled = _catalogSettings.NewProductsEnabled,
-                DisplayTaxShippingInfoFooter = _catalogSettings.DisplayTaxShippingInfoFooter,
-                HidePoweredByNopCommerce = _storeInformationSettings.HidePoweredByNopCommerce,
-                AllowCustomersToApplyForVendorAccount = _vendorSettings.AllowCustomersToApplyForVendorAccount,
-                Topics = cachedTopicModel
-            };
-
+            var model = _commonModelFactory.PrepareFooterModel();
             return PartialView(model);
         }
 
@@ -477,76 +268,35 @@ namespace Nop.Web.Controllers
         //contact us page
         [NopHttpsRequirement(SslRequirement.Yes)]
         //available even when a store is closed
-        [StoreClosed(true)] 
-        public ActionResult ContactUs()
+        [StoreClosed(true)]
+        public virtual ActionResult ContactUs()
         {
-            var model = new ContactUsModel
-            {
-                Email = _workContext.CurrentCustomer.Email,
-                FullName = _workContext.CurrentCustomer.GetFullName(),
-                SubjectEnabled = _commonSettings.SubjectFieldOnContactUsForm,
-                DisplayCaptcha = _captchaSettings.Enabled && _captchaSettings.ShowOnContactUsPage
-            };
+            var model = new ContactUsModel();
+            model = _commonModelFactory.PrepareContactUsModel(model, false);
             return View(model);
         }
         [HttpPost, ActionName("ContactUs")]
         [PublicAntiForgery]
         [CaptchaValidator]
         //available even when a store is closed
-        [StoreClosed(true)] 
-        public ActionResult ContactUsSend(ContactUsModel model, bool captchaValid)
+        [StoreClosed(true)]
+        public virtual ActionResult ContactUsSend(ContactUsModel model, bool captchaValid)
         {
             //validate CAPTCHA
             if (_captchaSettings.Enabled && _captchaSettings.ShowOnContactUsPage && !captchaValid)
             {
-                ModelState.AddModelError("", _localizationService.GetResource("Common.WrongCaptcha"));
+                ModelState.AddModelError("", _captchaSettings.GetWrongCaptchaMessage(_localizationService));
             }
+
+            model = _commonModelFactory.PrepareContactUsModel(model, true);
 
             if (ModelState.IsValid)
             {
-                string email = model.Email.Trim();
-                string fullName = model.FullName;
-                string subject = _commonSettings.SubjectFieldOnContactUsForm ?
-                    model.Subject :
-                    string.Format(_localizationService.GetResource("ContactUs.EmailSubject"), _storeContext.CurrentStore.GetLocalized(x => x.Name));
-
-                var emailAccount = _emailAccountService.GetEmailAccountById(_emailAccountSettings.DefaultEmailAccountId);
-                if (emailAccount == null)
-                    emailAccount = _emailAccountService.GetAllEmailAccounts().FirstOrDefault();
-                if (emailAccount == null)
-                    throw new Exception("No email account could be loaded");
-
-                string from;
-                string fromName;
+                string subject = _commonSettings.SubjectFieldOnContactUsForm ? model.Subject : null;
                 string body = Core.Html.HtmlHelper.FormatText(model.Enquiry, false, true, false, false, false, false);
-                //required for some SMTP servers
-                if (_commonSettings.UseSystemEmailForContactUsForm)
-                {
-                    from = emailAccount.Email;
-                    fromName = emailAccount.DisplayName;
-                    body = string.Format("<strong>From</strong>: {0} - {1}<br /><br />{2}", 
-                        Server.HtmlEncode(fullName), 
-                        Server.HtmlEncode(email), body);
-                }
-                else
-                {
-                    from = email;
-                    fromName = fullName;
-                }
-                _queuedEmailService.InsertQueuedEmail(new QueuedEmail
-                {
-                    From = from,
-                    FromName = fromName,
-                    To = emailAccount.Email,
-                    ToName = emailAccount.DisplayName,
-                    ReplyTo = email,
-                    ReplyToName = fullName,
-                    Priority = QueuedEmailPriority.High,
-                    Subject = subject,
-                    Body = body,
-                    CreatedOnUtc = DateTime.UtcNow,
-                    EmailAccountId = emailAccount.Id
-                });
+
+                _workflowMessageService.SendContactUsMessage(_workContext.WorkingLanguage.Id,
+                    model.Email.Trim(), model.FullName, subject, body);
                 
                 model.SuccessfullySent = true;
                 model.Result = _localizationService.GetResource("ContactUs.YourEnquiryHasBeenSent");
@@ -557,12 +307,11 @@ namespace Nop.Web.Controllers
                 return View(model);
             }
 
-            model.DisplayCaptcha = _captchaSettings.Enabled && _captchaSettings.ShowOnContactUsPage;
             return View(model);
         }
         //contact vendor page
         [NopHttpsRequirement(SslRequirement.Yes)]
-        public ActionResult ContactVendor(int vendorId)
+        public virtual ActionResult ContactVendor(int vendorId)
         {
             if (!_vendorSettings.AllowCustomersToContactVendors)
                 return RedirectToRoute("HomePage");
@@ -571,21 +320,14 @@ namespace Nop.Web.Controllers
             if (vendor == null || !vendor.Active || vendor.Deleted)
                 return RedirectToRoute("HomePage");
 
-            var model = new ContactVendorModel
-            {
-                Email = _workContext.CurrentCustomer.Email,
-                FullName = _workContext.CurrentCustomer.GetFullName(),
-                SubjectEnabled = _commonSettings.SubjectFieldOnContactUsForm,
-                DisplayCaptcha = _captchaSettings.Enabled && _captchaSettings.ShowOnContactUsPage,
-                VendorId = vendor.Id,
-                VendorName = vendor.GetLocalized(x => x.Name)
-            };
+            var model = new ContactVendorModel();
+            model = _commonModelFactory.PrepareContactVendorModel(model, vendor, false);
             return View(model);
         }
         [HttpPost, ActionName("ContactVendor")]
         [PublicAntiForgery]
         [CaptchaValidator]
-        public ActionResult ContactVendorSend(ContactVendorModel model, bool captchaValid)
+        public virtual ActionResult ContactVendorSend(ContactVendorModel model, bool captchaValid)
         {
             if (!_vendorSettings.AllowCustomersToContactVendors)
                 return RedirectToRoute("HomePage");
@@ -597,177 +339,63 @@ namespace Nop.Web.Controllers
             //validate CAPTCHA
             if (_captchaSettings.Enabled && _captchaSettings.ShowOnContactUsPage && !captchaValid)
             {
-                ModelState.AddModelError("", _localizationService.GetResource("Common.WrongCaptcha"));
+                ModelState.AddModelError("", _captchaSettings.GetWrongCaptchaMessage(_localizationService));
             }
 
-            model.VendorName = vendor.GetLocalized(x => x.Name);
+            model = _commonModelFactory.PrepareContactVendorModel(model, vendor, true);
 
             if (ModelState.IsValid)
             {
-                string email = model.Email.Trim();
-                string fullName = model.FullName;
-
-                string subject = _commonSettings.SubjectFieldOnContactUsForm ?
-                    model.Subject :
-                    string.Format(_localizationService.GetResource("ContactVendor.EmailSubject"), _storeContext.CurrentStore.GetLocalized(x => x.Name));
-
-
-                var emailAccount = _emailAccountService.GetEmailAccountById(_emailAccountSettings.DefaultEmailAccountId);
-                if (emailAccount == null)
-                    emailAccount = _emailAccountService.GetAllEmailAccounts().FirstOrDefault();
-                if (emailAccount == null)
-                    throw new Exception("No email account could be loaded");
-
-                string from;
-                string fromName;
+                string subject = _commonSettings.SubjectFieldOnContactUsForm ? model.Subject : null;
                 string body = Core.Html.HtmlHelper.FormatText(model.Enquiry, false, true, false, false, false, false);
-                //required for some SMTP servers
-                if (_commonSettings.UseSystemEmailForContactUsForm)
-                {
-                    from = emailAccount.Email;
-                    fromName = emailAccount.DisplayName;
-                    body = string.Format("<strong>From</strong>: {0} - {1}<br /><br />{2}",
-                        Server.HtmlEncode(fullName),
-                        Server.HtmlEncode(email), body);
-                }
-                else
-                {
-                    from = email;
-                    fromName = fullName;
-                }
-                _queuedEmailService.InsertQueuedEmail(new QueuedEmail
-                {
-                    From = from,
-                    FromName = fromName,
-                    To = vendor.Email,
-                    ToName = vendor.Name,
-                    ReplyTo = email,
-                    ReplyToName = fullName,
-                    Priority = QueuedEmailPriority.High,
-                    Subject = subject,
-                    Body = body,
-                    CreatedOnUtc = DateTime.UtcNow,
-                    EmailAccountId = emailAccount.Id
-                });
 
+                _workflowMessageService.SendContactVendorMessage(vendor, _workContext.WorkingLanguage.Id,
+                    model.Email.Trim(), model.FullName, subject, body);
+                
                 model.SuccessfullySent = true;
                 model.Result = _localizationService.GetResource("ContactVendor.YourEnquiryHasBeenSent");
 
                 return View(model);
             }
 
-            model.DisplayCaptcha = _captchaSettings.Enabled && _captchaSettings.ShowOnContactUsPage;
             return View(model);
         }
 
         //sitemap page
         [NopHttpsRequirement(SslRequirement.No)]
-        public ActionResult Sitemap()
+        public virtual ActionResult Sitemap()
         {
             if (!_commonSettings.SitemapEnabled)
                 return RedirectToRoute("HomePage");
 
-            string cacheKey = string.Format(ModelCacheEventConsumer.SITEMAP_PAGE_MODEL_KEY, 
-                _workContext.WorkingLanguage.Id,
-                string.Join(",", _workContext.CurrentCustomer.GetCustomerRoleIds()),
-                _storeContext.CurrentStore.Id);
-            var cachedModel = _cacheManager.Get(cacheKey, () =>
-            {
-                var model = new SitemapModel
-                {
-                    BlogEnabled = _blogSettings.Enabled,
-                    ForumEnabled = _forumSettings.ForumsEnabled,
-                    NewsEnabled = _newsSettings.Enabled,
-                };
-                //categories
-                if (_commonSettings.SitemapIncludeCategories)
-                {
-                    var categories = _categoryService.GetAllCategories();
-                    model.Categories = categories.Select(x => x.ToModel()).ToList();
-                }
-                //manufacturers
-                if (_commonSettings.SitemapIncludeManufacturers)
-                {
-                    var manufacturers = _manufacturerService.GetAllManufacturers();
-                    model.Manufacturers = manufacturers.Select(x => x.ToModel()).ToList();
-                }
-                //products
-                if (_commonSettings.SitemapIncludeProducts)
-                {
-                    //limit product to 200 until paging is supported on this page
-                    var products = _productService.SearchProducts(storeId: _storeContext.CurrentStore.Id,
-                        visibleIndividuallyOnly: true,
-                        pageSize: 200);
-                    model.Products = products.Select(product => new ProductOverviewModel
-                    {
-                        Id = product.Id,
-                        Name = product.GetLocalized(x => x.Name),
-                        ShortDescription = product.GetLocalized(x => x.ShortDescription),
-                        FullDescription = product.GetLocalized(x => x.FullDescription),
-                        SeName = product.GetSeName(),
-                    }).ToList();
-                }
-
-                //topics
-                var topics = _topicService.GetAllTopics(_storeContext.CurrentStore.Id)
-                    .Where(t => t.IncludeInSitemap)
-                    .ToList();
-                model.Topics = topics.Select(topic => new TopicModel
-                {
-                    Id = topic.Id,
-                    SystemName = topic.SystemName,
-                    IncludeInSitemap = topic.IncludeInSitemap,
-                    IsPasswordProtected = topic.IsPasswordProtected,
-                    Title = topic.GetLocalized(x => x.Title),
-                })
-                .ToList();
-                return model;
-            });
-
-            return View(cachedModel);
+            var model = _commonModelFactory.PrepareSitemapModel();
+            return View(model);
         }
 
         //SEO sitemap page
         [NopHttpsRequirement(SslRequirement.No)]
         //available even when a store is closed
         [StoreClosed(true)]
-        public ActionResult SitemapXml()
+        public virtual ActionResult SitemapXml(int? id)
         {
             if (!_commonSettings.SitemapEnabled)
                 return RedirectToRoute("HomePage");
-
-            string cacheKey = string.Format(ModelCacheEventConsumer.SITEMAP_SEO_MODEL_KEY, 
-                _workContext.WorkingLanguage.Id,
-                string.Join(",", _workContext.CurrentCustomer.GetCustomerRoleIds()),
-                _storeContext.CurrentStore.Id);
-            var siteMap = _cacheManager.Get(cacheKey, () => _sitemapGenerator.Generate(this.Url));
+            
+            var siteMap = _commonModelFactory.PrepareSitemapXml(this.Url, id);
             return Content(siteMap, "text/xml");
         }
 
         //store theme
         [ChildActionOnly]
-        public ActionResult StoreThemeSelector()
+        public virtual ActionResult StoreThemeSelector()
         {
             if (!_storeInformationSettings.AllowCustomerToSelectTheme)
                 return Content("");
 
-            var model = new StoreThemeSelectorModel();
-            var currentTheme = _themeProvider.GetThemeConfiguration(_themeContext.WorkingThemeName);
-            model.CurrentStoreTheme = new StoreThemeModel
-            {
-                Name = currentTheme.ThemeName,
-                Title = currentTheme.ThemeTitle
-            };
-            model.AvailableStoreThemes = _themeProvider.GetThemeConfigurations()
-                .Select(x => new StoreThemeModel
-                {
-                    Name = x.ThemeName,
-                    Title = x.ThemeTitle
-                })
-                .ToList();
+            var model = _commonModelFactory.PrepareStoreThemeSelectorModel();
             return PartialView(model);
         }
-        public ActionResult SetStoreTheme(string themeName, string returnUrl = "")
+        public virtual ActionResult SetStoreTheme(string themeName, string returnUrl = "")
         {
             _themeContext.WorkingThemeName = themeName;
 
@@ -784,32 +412,18 @@ namespace Nop.Web.Controllers
 
         //favicon
         [ChildActionOnly]
-        public ActionResult Favicon()
+        public virtual ActionResult Favicon()
         {
-            //try loading a store specific favicon
-            var faviconFileName = string.Format("favicon-{0}.ico", _storeContext.CurrentStore.Id);
-            var localFaviconPath = System.IO.Path.Combine(Request.PhysicalApplicationPath, faviconFileName);
-            if (!System.IO.File.Exists(localFaviconPath))
-            {
-                //try loading a generic favicon
-                faviconFileName = "favicon.ico";
-                localFaviconPath = System.IO.Path.Combine(Request.PhysicalApplicationPath, faviconFileName);
-                if (!System.IO.File.Exists(localFaviconPath))
-                {
-                    return Content("");
-                }
-            }
+            var model = _commonModelFactory.PrepareFaviconModel();
+            if (String.IsNullOrEmpty(model.FaviconUrl))
+                return Content("");
 
-            var model = new FaviconModel
-            {
-                FaviconUrl = _webHelper.GetStoreLocation() + faviconFileName
-            };
             return PartialView(model);
         }
-        
+
         //EU Cookie law
         [ChildActionOnly]
-        public ActionResult EuCookieLaw()
+        public virtual ActionResult EuCookieLaw()
         {
             if (!_storeInformationSettings.DisplayEuCookieLawWarning)
                 //disabled
@@ -835,7 +449,7 @@ namespace Nop.Web.Controllers
         [StoreClosed(true)]
         //available even when navigation is not allowed
         [PublicStoreAllowNavigation(true)]
-        public ActionResult EuCookieLawAccept()
+        public virtual ActionResult EuCookieLawAccept()
         {
             if (!_storeInformationSettings.DisplayEuCookieLawWarning)
                 //disabled
@@ -851,152 +465,15 @@ namespace Nop.Web.Controllers
         [StoreClosed(true)]
         //available even when navigation is not allowed
         [PublicStoreAllowNavigation(true)]
-        public ActionResult RobotsTextFile()
+        public virtual ActionResult RobotsTextFile()
         {
-            var sb = new StringBuilder();
-
-            //if robots.txt exists, let's use it
-            string robotsFile = System.IO.Path.Combine(_webHelper.MapPath("~/"), "robots.custom.txt");
-            if (System.IO.File.Exists(robotsFile))
-            {
-                //the robots.txt file exists
-                string robotsFileContent = System.IO.File.ReadAllText(robotsFile);
-                sb.Append(robotsFileContent);
-            }
-            else
-            {
-                //doesn't exist. Let's generate it (default behavior)
-
-                var disallowPaths = new List<string>
-                {
-                    "/bin/",
-                    "/content/files/",
-                    "/content/files/exportimport/",
-                    "/country/getstatesbycountryid",
-                    "/install",
-                    "/setproductreviewhelpfulness",
-                };
-                var localizableDisallowPaths = new List<string>
-                {
-                    "/addproducttocart/catalog/",
-                    "/addproducttocart/details/",
-                    "/backinstocksubscriptions/manage",
-                    "/boards/forumsubscriptions",
-                    "/boards/forumwatch",
-                    "/boards/postedit",
-                    "/boards/postdelete",
-                    "/boards/postcreate",
-                    "/boards/topicedit",
-                    "/boards/topicdelete",
-                    "/boards/topiccreate",
-                    "/boards/topicmove",
-                    "/boards/topicwatch",
-                    "/cart",
-                    "/checkout",
-                    "/checkout/billingaddress",
-                    "/checkout/completed",
-                    "/checkout/confirm",
-                    "/checkout/shippingaddress",
-                    "/checkout/shippingmethod",
-                    "/checkout/paymentinfo",
-                    "/checkout/paymentmethod",
-                    "/clearcomparelist",
-                    "/compareproducts",
-                    "/compareproducts/add/*",
-                    "/customer/avatar",
-                    "/customer/activation",
-                    "/customer/addresses",
-                    "/customer/changepassword",
-                    "/customer/checkusernameavailability",
-                    "/customer/downloadableproducts",
-                    "/customer/info",
-                    "/deletepm",
-                    "/emailwishlist",
-                    "/inboxupdate",
-                    "/newsletter/subscriptionactivation",
-                    "/onepagecheckout",
-                    "/order/history",
-                    "/orderdetails",
-                    "/passwordrecovery/confirm",
-                    "/poll/vote",
-                    "/privatemessages",
-                    "/returnrequest",
-                    "/returnrequest/history",
-                    "/rewardpoints/history",
-                    "/sendpm",
-                    "/sentupdate",
-                    "/shoppingcart/*",
-                    "/storeclosed",
-                    "/subscribenewsletter",
-                    "/topic/authenticate",
-                    "/viewpm",
-                    "/uploadfileproductattribute",
-                    "/uploadfilecheckoutattribute",
-                    "/wishlist",
-                };
-
-
-                const string newLine = "\r\n"; //Environment.NewLine
-                sb.Append("User-agent: *");
-                sb.Append(newLine);
-                //sitemaps
-                if (_localizationSettings.SeoFriendlyUrlsForLanguagesEnabled)
-                {
-                    //URLs are localizable. Append SEO code
-                    foreach (var language in _languageService.GetAllLanguages(storeId: _storeContext.CurrentStore.Id))
-                    {
-                        sb.AppendFormat("Sitemap: {0}{1}/sitemap.xml", _storeContext.CurrentStore.Url, language.UniqueSeoCode);
-                        sb.Append(newLine);
-                    }
-                }
-                else
-                {
-                    //localizable paths (without SEO code)
-                    sb.AppendFormat("Sitemap: {0}sitemap.xml", _storeContext.CurrentStore.Url);
-                    sb.Append(newLine);
-                }
-
-                //usual paths
-                foreach (var path in disallowPaths)
-                {
-                    sb.AppendFormat("Disallow: {0}", path);
-                    sb.Append(newLine);
-                }
-                //localizable paths (without SEO code)
-                foreach (var path in localizableDisallowPaths)
-                {
-                    sb.AppendFormat("Disallow: {0}", path);
-                    sb.Append(newLine);
-                }
-                if (_localizationSettings.SeoFriendlyUrlsForLanguagesEnabled)
-                {
-                    //URLs are localizable. Append SEO code
-                    foreach (var language in _languageService.GetAllLanguages(storeId: _storeContext.CurrentStore.Id))
-                    {
-                        foreach (var path in localizableDisallowPaths)
-                        {
-                            sb.AppendFormat("Disallow: {0}{1}", language.UniqueSeoCode, path);
-                            sb.Append(newLine);
-                        }
-                    }
-                }
-
-                //load and add robots.txt additions to the end of file.
-                string robotsAdditionsFile = System.IO.Path.Combine(_webHelper.MapPath("~/"), "robots.additions.txt");
-                if (System.IO.File.Exists(robotsAdditionsFile))
-                {
-                    string robotsFileContent = System.IO.File.ReadAllText(robotsAdditionsFile);
-                    sb.Append(robotsFileContent);
-                }
-            }
-
-
-            Response.ContentType = "text/plain";
-            Response.Write(sb.ToString());
+            var content = _commonModelFactory.PrepareRobotsTextFile();
+            Response.ContentType = MimeTypes.TextPlain;
+            Response.Write(content);
             return null;
         }
 
-        public ActionResult GenericUrl()
+        public virtual ActionResult GenericUrl()
         {
             //seems that no entity was found
             return InvokeHttp404();
@@ -1004,8 +481,8 @@ namespace Nop.Web.Controllers
 
         //store is closed
         //available even when a store is closed
-        [StoreClosed(true)] 
-        public ActionResult StoreClosed()
+        [StoreClosed(true)]
+        public virtual ActionResult StoreClosed()
         {
             return View();
         }

@@ -2,6 +2,7 @@
 using System.IO;
 using System.Web;
 using System.Web.Mvc;
+using Nop.Core;
 using Nop.Core.Domain.Media;
 using Nop.Services.Media;
 using Nop.Web.Framework.Security;
@@ -17,7 +18,7 @@ namespace Nop.Admin.Controllers
             this._downloadService = downloadService;
         }
 
-        public ActionResult DownloadFile(Guid downloadGuid)
+        public virtual ActionResult DownloadFile(Guid downloadGuid)
         {
             var download = _downloadService.GetDownloadByGuid(downloadGuid);
             if (download == null)
@@ -33,7 +34,7 @@ namespace Nop.Admin.Controllers
             string fileName = !String.IsNullOrWhiteSpace(download.Filename) ? download.Filename : download.Id.ToString();
             string contentType = !String.IsNullOrWhiteSpace(download.ContentType)
                 ? download.ContentType
-                : "application/octet-stream";
+                : MimeTypes.ApplicationOctetStream;
             return new FileContentResult(download.DownloadBinary, contentType)
             {
                 FileDownloadName = fileName + download.Extension
@@ -44,7 +45,7 @@ namespace Nop.Admin.Controllers
         [ValidateInput(false)]
         //do not validate request token (XSRF)
         [AdminAntiForgery(true)] 
-        public ActionResult SaveDownloadUrl(string downloadUrl)
+        public virtual ActionResult SaveDownloadUrl(string downloadUrl)
         {
             //insert
             var download = new Download
@@ -62,7 +63,7 @@ namespace Nop.Admin.Controllers
         [HttpPost]
         //do not validate request token (XSRF)
         [AdminAntiForgery(true)]
-        public ActionResult AsyncUpload()
+        public virtual ActionResult AsyncUpload()
         {
             //we process it distinct ways based on a browser
             //find more info here http://stackoverflow.com/questions/4884920/mvc3-valums-ajax-file-upload
@@ -112,7 +113,7 @@ namespace Nop.Admin.Controllers
             return Json(new { success = true, 
                 downloadId = download.Id, 
                 downloadUrl = Url.Action("DownloadFile", new { downloadGuid= download.DownloadGuid }) },
-                "text/plain");
+                MimeTypes.TextPlain);
         }
     }
 }

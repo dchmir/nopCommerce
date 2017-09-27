@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Nop.Web.Framework;
 using Nop.Web.Framework.Mvc;
+using Nop.Web.Models.Common;
 
 namespace Nop.Web.Models.Order
 {
@@ -13,6 +14,7 @@ namespace Nop.Web.Models.Order
         }
 
         public IList<RewardPointsHistoryModel> RewardPoints { get; set; }
+        public PagerModel PagerModel { get; set; }
         public int RewardPointsBalance { get; set; }
         public string RewardPointsAmount { get; set; }
         public int MinimumRewardPointsBalance { get; set; }
@@ -26,7 +28,7 @@ namespace Nop.Web.Models.Order
             public int Points { get; set; }
 
             [NopResourceDisplayName("RewardPoints.Fields.PointsBalance")]
-            public int PointsBalance { get; set; }
+            public string PointsBalance { get; set; }
 
             [NopResourceDisplayName("RewardPoints.Fields.Message")]
             public string Message { get; set; }

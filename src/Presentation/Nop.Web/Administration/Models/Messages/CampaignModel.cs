@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Web.Mvc;
 using FluentValidation.Attributes;
 using Nop.Admin.Validators.Messages;
@@ -14,6 +15,8 @@ namespace Nop.Admin.Models.Messages
         public CampaignModel()
         {
             this.AvailableStores = new List<SelectListItem>();
+            this.AvailableCustomerRoles = new List<SelectListItem>();
+            this.AvailableEmailAccounts = new List<SelectListItem>();
         }
 
         [NopResourceDisplayName("Admin.Promotions.Campaigns.Fields.Name")]
@@ -31,12 +34,24 @@ namespace Nop.Admin.Models.Messages
         [NopResourceDisplayName("Admin.Promotions.Campaigns.Fields.Store")]
         public int StoreId { get; set; }
         public IList<SelectListItem> AvailableStores { get; set; }
-        
+
+        [NopResourceDisplayName("Admin.Promotions.Campaigns.Fields.CustomerRole")]
+        public int CustomerRoleId { get; set; }
+        public IList<SelectListItem> AvailableCustomerRoles { get; set; }
+
         [NopResourceDisplayName("Admin.Promotions.Campaigns.Fields.CreatedOn")]
         public DateTime CreatedOn { get; set; }
 
+        [NopResourceDisplayName("Admin.Promotions.Campaigns.Fields.DontSendBeforeDate")]
+        [UIHint("DateTimeNullable")]
+        public DateTime? DontSendBeforeDate { get; set; }
+
         [NopResourceDisplayName("Admin.Promotions.Campaigns.Fields.AllowedTokens")]
         public string AllowedTokens { get; set; }
+
+        [NopResourceDisplayName("Admin.Promotions.Campaigns.Fields.EmailAccount")]
+        public int EmailAccountId { get; set; }
+        public IList<SelectListItem> AvailableEmailAccounts { get; set; }
 
         [NopResourceDisplayName("Admin.Promotions.Campaigns.Fields.TestEmail")]
         [AllowHtml]

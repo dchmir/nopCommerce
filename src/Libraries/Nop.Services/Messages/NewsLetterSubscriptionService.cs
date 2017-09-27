@@ -47,20 +47,20 @@ namespace Nop.Services.Messages
         /// <summary>
         /// Publishes the subscription event.
         /// </summary>
-        /// <param name="email">The email.</param>
+        /// <param name="subscription">The newsletter subscription.</param>
         /// <param name="isSubscribe">if set to <c>true</c> [is subscribe].</param>
         /// <param name="publishSubscriptionEvents">if set to <c>true</c> [publish subscription events].</param>
-        private void PublishSubscriptionEvent(string email, bool isSubscribe, bool publishSubscriptionEvents)
+        private void PublishSubscriptionEvent(NewsLetterSubscription subscription, bool isSubscribe, bool publishSubscriptionEvents)
         {
             if (publishSubscriptionEvents)
             {
                 if (isSubscribe)
                 {
-                    _eventPublisher.PublishNewsletterSubscribe(email);
+                    _eventPublisher.PublishNewsletterSubscribe(subscription);
                 }
                 else
                 {
-                    _eventPublisher.PublishNewsletterUnsubscribe(email);
+                    _eventPublisher.PublishNewsletterUnsubscribe(subscription);
                 }
             }
         }
@@ -89,7 +89,7 @@ namespace Nop.Services.Messages
             //Publish the subscription event 
             if (newsLetterSubscription.Active)
             {
-                PublishSubscriptionEvent(newsLetterSubscription.Email, true, publishSubscriptionEvents);
+                PublishSubscriptionEvent(newsLetterSubscription, true, publishSubscriptionEvents);
             }
 
             //Publish event
@@ -122,20 +122,20 @@ namespace Nop.Services.Messages
                 (newsLetterSubscription.Active && (originalSubscription.Email != newsLetterSubscription.Email)))
             {
                 //If the previous entry was false, but this one is true, publish a subscribe.
-                PublishSubscriptionEvent(newsLetterSubscription.Email, true, publishSubscriptionEvents);
+                PublishSubscriptionEvent(newsLetterSubscription, true, publishSubscriptionEvents);
             }
             
             if ((originalSubscription.Active && newsLetterSubscription.Active) && 
                 (originalSubscription.Email != newsLetterSubscription.Email))
             {
                 //If the two emails are different publish an unsubscribe.
-                PublishSubscriptionEvent(originalSubscription.Email, false, publishSubscriptionEvents);
+                PublishSubscriptionEvent(originalSubscription, false, publishSubscriptionEvents);
             }
 
             if ((originalSubscription.Active && !newsLetterSubscription.Active))
             {
                 //If the previous entry was true, but this one is false
-                PublishSubscriptionEvent(originalSubscription.Email, false, publishSubscriptionEvents);
+                PublishSubscriptionEvent(originalSubscription, false, publishSubscriptionEvents);
             }
 
             //Publish event
@@ -154,7 +154,7 @@ namespace Nop.Services.Messages
             _subscriptionRepository.Delete(newsLetterSubscription);
 
             //Publish the unsubscribe event 
-            PublishSubscriptionEvent(newsLetterSubscription.Email, false, publishSubscriptionEvents);
+            PublishSubscriptionEvent(newsLetterSubscription, false, publishSubscriptionEvents);
 
             //event notification
             _eventPublisher.EntityDeleted(newsLetterSubscription);
@@ -214,6 +214,8 @@ namespace Nop.Services.Messages
         /// Gets the newsletter subscription list
         /// </summary>
         /// <param name="email">Email to search or string. Empty to load all records.</param>
+        /// <param name="createdFromUtc">Created date from (UTC); null to load all records</param>
+        /// <param name="createdToUtc">Created date to (UTC); null to load all records</param>
         /// <param name="storeId">Store identifier. 0 to load all records.</param>
         /// <param name="customerRoleId">Customer role identifier. Used to filter subscribers by customer role. 0 to load all records.</param>
         /// <param name="isActive">Value indicating whether subscriber record should be active or not; null to load all records</param>
@@ -221,6 +223,7 @@ namespace Nop.Services.Messages
         /// <param name="pageSize">Page size</param>
         /// <returns>NewsLetterSubscription entities</returns>
         public virtual IPagedList<NewsLetterSubscription> GetAllNewsLetterSubscriptions(string email = null,
+            DateTime? createdFromUtc = null, DateTime? createdToUtc = null,
             int storeId = 0, bool? isActive = null, int customerRoleId = 0,
             int pageIndex = 0, int pageSize = int.MaxValue)
         {
@@ -230,6 +233,10 @@ namespace Nop.Services.Messages
                 var query = _subscriptionRepository.Table;
                 if (!String.IsNullOrEmpty(email))
                     query = query.Where(nls => nls.Email.Contains(email));
+                if (createdFromUtc.HasValue)
+                    query = query.Where(nls => nls.CreatedOnUtc >= createdFromUtc.Value);
+                if (createdToUtc.HasValue)
+                    query = query.Where(nls => nls.CreatedOnUtc <= createdToUtc.Value);
                 if (storeId > 0)
                     query = query.Where(nls => nls.StoreId == storeId);
                 if (isActive.HasValue)
@@ -252,6 +259,10 @@ namespace Nop.Services.Messages
                     var query = _subscriptionRepository.Table;
                     if (!String.IsNullOrEmpty(email))
                         query = query.Where(nls => nls.Email.Contains(email));
+                    if (createdFromUtc.HasValue)
+                        query = query.Where(nls => nls.CreatedOnUtc >= createdFromUtc.Value);
+                    if (createdToUtc.HasValue)
+                        query = query.Where(nls => nls.CreatedOnUtc <= createdToUtc.Value);
                     if (storeId > 0)
                         query = query.Where(nls => nls.StoreId == storeId);
                     if (isActive.HasValue)
@@ -276,6 +287,10 @@ namespace Nop.Services.Messages
                     query = query.Where(x => x.Customer.CustomerRoles.Any(cr => cr.Id == customerRoleId));
                     if (!String.IsNullOrEmpty(email))
                         query = query.Where(x => x.NewsletterSubscribers.Email.Contains(email));
+                    if (createdFromUtc.HasValue)
+                        query = query.Where(x => x.NewsletterSubscribers.CreatedOnUtc >= createdFromUtc.Value);
+                    if (createdToUtc.HasValue)
+                        query = query.Where(x => x.NewsletterSubscribers.CreatedOnUtc <= createdToUtc.Value);
                     if (storeId > 0)
                         query = query.Where(x => x.NewsletterSubscribers.StoreId == storeId);
                     if (isActive.HasValue)

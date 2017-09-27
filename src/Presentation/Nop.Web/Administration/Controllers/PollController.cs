@@ -39,16 +39,37 @@ namespace Nop.Admin.Controllers
             this._permissionService = permissionService;
 		}
 
-		#endregion 
-        
+        #endregion
+
+        #region Utilities
+
+        [NonAction]
+        protected virtual void PrepareLanguagesModel(PollModel model)
+        {
+            if (model == null)
+                throw new ArgumentNullException("model");
+
+            var languages = _languageService.GetAllLanguages(true);
+            foreach (var language in languages)
+            {
+                model.AvailableLanguages.Add(new SelectListItem
+                {
+                    Text = language.Name,
+                    Value = language.Id.ToString()
+                });
+            }
+        }
+
+        #endregion
+
         #region Polls
 
-        public ActionResult Index()
+        public virtual ActionResult Index()
         {
             return RedirectToAction("List");
         }
 
-        public ActionResult List()
+        public virtual ActionResult List()
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePolls))
                 return AccessDeniedView();
@@ -57,12 +78,12 @@ namespace Nop.Admin.Controllers
         }
 
         [HttpPost]
-        public ActionResult List(DataSourceRequest command)
+        public virtual ActionResult List(DataSourceRequest command)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePolls))
-                return AccessDeniedView();
+                return AccessDeniedKendoGridJson();
 
-            var polls = _pollService.GetPolls(0, false, command.Page - 1, command.PageSize, true);
+            var polls = _pollService.GetPolls(0, false, null, command.Page - 1, command.PageSize, true);
             var gridModel = new DataSourceResult
             {
                 Data = polls.Select(x =>
@@ -81,13 +102,14 @@ namespace Nop.Admin.Controllers
             return Json(gridModel);
         }
 
-        public ActionResult Create()
+        public virtual ActionResult Create()
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePolls))
                 return AccessDeniedView();
 
-            ViewBag.AllLanguages = _languageService.GetAllLanguages(true);
             var model = new PollModel();
+            //languages
+            PrepareLanguagesModel(model);
             //default values
             model.Published = true;
             model.ShowOnHomePage = true;
@@ -95,7 +117,7 @@ namespace Nop.Admin.Controllers
         }
 
         [HttpPost, ParameterBasedOnFormName("save-continue", "continueEditing")]
-        public ActionResult Create(PollModel model, bool continueEditing)
+        public virtual ActionResult Create(PollModel model, bool continueEditing)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePolls))
                 return AccessDeniedView();
@@ -108,15 +130,24 @@ namespace Nop.Admin.Controllers
                 _pollService.InsertPoll(poll);
 
                 SuccessNotification(_localizationService.GetResource("Admin.ContentManagement.Polls.Added"));
-                return continueEditing ? RedirectToAction("Edit", new { id = poll.Id }) : RedirectToAction("List");
+
+                if (continueEditing)
+                {
+                    //selected tab
+                    SaveSelectedTabName();
+
+                    return RedirectToAction("Edit", new { id = poll.Id });
+                }
+                return RedirectToAction("List");
+
             }
 
             //If we got this far, something failed, redisplay form
-            ViewBag.AllLanguages = _languageService.GetAllLanguages(true);
+            PrepareLanguagesModel(model);
             return View(model);
         }
 
-        public ActionResult Edit(int id)
+        public virtual ActionResult Edit(int id)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePolls))
                 return AccessDeniedView();
@@ -125,16 +156,17 @@ namespace Nop.Admin.Controllers
             if (poll == null)
                 //No poll found with the specified id
                 return RedirectToAction("List");
-
-            ViewBag.AllLanguages = _languageService.GetAllLanguages(true);
+            
             var model = poll.ToModel();
             model.StartDate = poll.StartDateUtc;
             model.EndDate = poll.EndDateUtc;
+            //languages
+            PrepareLanguagesModel(model);
             return View(model);
         }
 
         [HttpPost, ParameterBasedOnFormName("save-continue", "continueEditing")]
-        public ActionResult Edit(PollModel model, bool continueEditing)
+        public virtual ActionResult Edit(PollModel model, bool continueEditing)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePolls))
                 return AccessDeniedView();
@@ -156,7 +188,7 @@ namespace Nop.Admin.Controllers
                 if (continueEditing)
                 {
                     //selected tab
-                    SaveSelectedTabIndex();
+                    SaveSelectedTabName();
 
                     return RedirectToAction("Edit", new { id = poll.Id });
                 }
@@ -164,12 +196,12 @@ namespace Nop.Admin.Controllers
             }
 
             //If we got this far, something failed, redisplay form
-            ViewBag.AllLanguages = _languageService.GetAllLanguages(true);
+            PrepareLanguagesModel(model);
             return View(model);
         }
 
         [HttpPost]
-        public ActionResult Delete(int id)
+        public virtual ActionResult Delete(int id)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePolls))
                 return AccessDeniedView();
@@ -190,10 +222,10 @@ namespace Nop.Admin.Controllers
         #region Poll answer
 
         [HttpPost]
-        public ActionResult PollAnswers(int pollId, DataSourceRequest command)
+        public virtual ActionResult PollAnswers(int pollId, DataSourceRequest command)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePolls))
-                return AccessDeniedView();
+                return AccessDeniedKendoGridJson();
 
             var poll = _pollService.GetPollById(pollId);
             if (poll == null)
@@ -219,7 +251,7 @@ namespace Nop.Admin.Controllers
 
 
         [HttpPost]
-        public ActionResult PollAnswerUpdate(PollAnswerModel model)
+        public virtual ActionResult PollAnswerUpdate(PollAnswerModel model)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePolls))
                 return AccessDeniedView();
@@ -241,7 +273,7 @@ namespace Nop.Admin.Controllers
         }
 
         [HttpPost]
-        public ActionResult PollAnswerAdd(int pollId, [Bind(Exclude = "Id")] PollAnswerModel model)
+        public virtual ActionResult PollAnswerAdd(int pollId, [Bind(Exclude = "Id")] PollAnswerModel model)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePolls))
                 return AccessDeniedView();
@@ -267,7 +299,7 @@ namespace Nop.Admin.Controllers
 
 
         [HttpPost]
-        public ActionResult PollAnswerDelete(int id)
+        public virtual ActionResult PollAnswerDelete(int id)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManagePolls))
                 return AccessDeniedView();

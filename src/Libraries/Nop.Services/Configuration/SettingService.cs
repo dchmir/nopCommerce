@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -180,6 +181,27 @@ namespace Nop.Services.Configuration
         }
 
         /// <summary>
+        /// Deletes settings
+        /// </summary>
+        /// <param name="settings">Settings</param>
+        public virtual void DeleteSettings(IList<Setting> settings)
+        {
+            if (settings == null)
+                throw new ArgumentNullException("settings");
+
+            _settingRepository.Delete(settings);
+
+            //cache
+            _cacheManager.RemoveByPattern(SETTINGS_PATTERN_KEY);
+
+            //event notification
+            foreach (var setting in settings)
+            {
+                _eventPublisher.EntityDeleted(setting);
+            }
+        }
+
+        /// <summary>
         /// Gets a setting by identifier
         /// </summary>
         /// <param name="settingId">Setting identifier</param>
@@ -268,7 +290,7 @@ namespace Nop.Services.Configuration
             if (key == null)
                 throw new ArgumentNullException("key");
             key = key.Trim().ToLowerInvariant();
-            string valueStr = CommonHelper.GetNopCustomTypeConverter(typeof(T)).ConvertToInvariantString(value);
+            string valueStr = TypeDescriptor.GetConverter(typeof(T)).ConvertToInvariantString(value);
 
             var allSettings = GetAllSettingsCached();
             var settingForCaching = allSettings.ContainsKey(key) ? 
@@ -346,13 +368,13 @@ namespace Nop.Services.Configuration
                 if (setting == null)
                     continue;
 
-                if (!CommonHelper.GetNopCustomTypeConverter(prop.PropertyType).CanConvertFrom(typeof(string)))
+                if (!TypeDescriptor.GetConverter(prop.PropertyType).CanConvertFrom(typeof(string)))
                     continue;
 
-                if (!CommonHelper.GetNopCustomTypeConverter(prop.PropertyType).IsValid(setting))
+                if (!TypeDescriptor.GetConverter(prop.PropertyType).IsValid(setting))
                     continue;
 
-                object value = CommonHelper.GetNopCustomTypeConverter(prop.PropertyType).ConvertFromInvariantString(setting);
+                object value = TypeDescriptor.GetConverter(prop.PropertyType).ConvertFromInvariantString(setting);
 
                 //set property
                 prop.SetValue(settings, value, null);
@@ -378,7 +400,7 @@ namespace Nop.Services.Configuration
                 if (!prop.CanRead || !prop.CanWrite)
                     continue;
 
-                if (!CommonHelper.GetNopCustomTypeConverter(prop.PropertyType).CanConvertFrom(typeof(string)))
+                if (!TypeDescriptor.GetConverter(prop.PropertyType).CanConvertFrom(typeof(string)))
                     continue;
 
                 string key = typeof(T).Name + "." + prop.Name;
@@ -433,6 +455,26 @@ namespace Nop.Services.Configuration
         }
 
         /// <summary>
+        /// Save settings object (per store). If the setting is not overridden per storem then it'll be delete
+        /// </summary>
+        /// <typeparam name="T">Entity type</typeparam>
+        /// <typeparam name="TPropType">Property type</typeparam>
+        /// <param name="settings">Settings</param>
+        /// <param name="keySelector">Key selector</param>
+        /// <param name="overrideForStore">A value indicating whether to setting is overridden in some store</param>
+        /// <param name="storeId">Store ID</param>
+        /// <param name="clearCache">A value indicating whether to clear cache after setting update</param>
+        public virtual void SaveSettingOverridablePerStore<T, TPropType>(T settings,
+            Expression<Func<T, TPropType>> keySelector,
+            bool overrideForStore, int storeId = 0, bool clearCache = true) where T : ISettings, new()
+        {
+            if (overrideForStore || storeId == 0)
+                SaveSetting(settings, keySelector, storeId, clearCache);
+            else if (storeId > 0)
+                DeleteSetting(settings, keySelector, storeId);
+        }
+
+        /// <summary>
         /// Delete all settings
         /// </summary>
         /// <typeparam name="T">Type</typeparam>
@@ -446,8 +488,7 @@ namespace Nop.Services.Configuration
                 settingsToDelete.AddRange(allSettings.Where(x => x.Name.Equals(key, StringComparison.InvariantCultureIgnoreCase)));
             }
 
-            foreach (var setting in settingsToDelete)
-                DeleteSetting(setting);
+            DeleteSettings(settingsToDelete);
         }
 
         /// <summary>

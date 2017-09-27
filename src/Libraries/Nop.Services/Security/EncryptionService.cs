@@ -21,13 +21,15 @@ namespace Nop.Services.Security
         /// <returns>Salt key</returns>
         public virtual string CreateSaltKey(int size) 
         {
-            // Generate a cryptographic random number
-            var rng = new RNGCryptoServiceProvider();
-            var buff = new byte[size];
-            rng.GetBytes(buff);
+            //generate a cryptographic random number
+            using (var provider = new RNGCryptoServiceProvider())
+            {
+                var buff = new byte[size];
+                provider.GetBytes(buff);
 
-            // Return a Base64 string representation of the random number
-            return Convert.ToBase64String(buff);
+                // Return a Base64 string representation of the random number
+                return Convert.ToBase64String(buff);
+            }
         }
 
         /// <summary>
@@ -39,16 +41,26 @@ namespace Nop.Services.Security
         /// <returns>Password hash</returns>
         public virtual string CreatePasswordHash(string password, string saltkey, string passwordFormat = "SHA1")
         {
-            if (String.IsNullOrEmpty(passwordFormat))
-                passwordFormat = "SHA1";
-            string saltAndPassword = String.Concat(password, saltkey);
+            return CreateHash(Encoding.UTF8.GetBytes(String.Concat(password, saltkey)), passwordFormat);
+        }
 
+        /// <summary>
+        /// Create a data hash
+        /// </summary>
+        /// <param name="data">The data for calculating the hash</param>
+        /// <param name="hashAlgorithm">Hash algorithm</param>
+        /// <returns>Data hash</returns>
+        public virtual string CreateHash(byte[] data, string hashAlgorithm = "SHA1")
+        {
+            if (String.IsNullOrEmpty(hashAlgorithm))
+                hashAlgorithm = "SHA1";
+           
             //return FormsAuthentication.HashPasswordForStoringInConfigFile(saltAndPassword, passwordFormat);
-            var algorithm = HashAlgorithm.Create(passwordFormat);
+            var algorithm = HashAlgorithm.Create(hashAlgorithm);
             if (algorithm == null)
                 throw new ArgumentException("Unrecognized hash name");
 
-            var hashByteArray = algorithm.ComputeHash(Encoding.UTF8.GetBytes(saltAndPassword));
+            var hashByteArray = algorithm.ComputeHash(data);
             return BitConverter.ToString(hashByteArray).Replace("-", "");
         }
 
@@ -66,12 +78,14 @@ namespace Nop.Services.Security
             if (String.IsNullOrEmpty(encryptionPrivateKey))
                 encryptionPrivateKey = _securitySettings.EncryptionKey;
 
-            var tDESalg = new TripleDESCryptoServiceProvider();
-            tDESalg.Key = new ASCIIEncoding().GetBytes(encryptionPrivateKey.Substring(0, 16));
-            tDESalg.IV = new ASCIIEncoding().GetBytes(encryptionPrivateKey.Substring(8, 8));
+            using (var provider = new TripleDESCryptoServiceProvider())
+            {
+                provider.Key = Encoding.ASCII.GetBytes(encryptionPrivateKey.Substring(0, 16));
+                provider.IV = Encoding.ASCII.GetBytes(encryptionPrivateKey.Substring(8, 8));
 
-            byte[] encryptedBinary = EncryptTextToMemory(plainText, tDESalg.Key, tDESalg.IV);
-            return Convert.ToBase64String(encryptedBinary);
+                byte[] encryptedBinary = EncryptTextToMemory(plainText, provider.Key, provider.IV);
+                return Convert.ToBase64String(encryptedBinary);
+            }
         }
 
         /// <summary>
@@ -88,12 +102,14 @@ namespace Nop.Services.Security
             if (String.IsNullOrEmpty(encryptionPrivateKey))
                 encryptionPrivateKey = _securitySettings.EncryptionKey;
 
-            var tDESalg = new TripleDESCryptoServiceProvider();
-            tDESalg.Key = new ASCIIEncoding().GetBytes(encryptionPrivateKey.Substring(0, 16));
-            tDESalg.IV = new ASCIIEncoding().GetBytes(encryptionPrivateKey.Substring(8, 8));
+            using (var provider = new TripleDESCryptoServiceProvider())
+            {
+                provider.Key = Encoding.ASCII.GetBytes(encryptionPrivateKey.Substring(0, 16));
+                provider.IV = Encoding.ASCII.GetBytes(encryptionPrivateKey.Substring(8, 8));
 
-            byte[] buffer = Convert.FromBase64String(cipherText);
-            return DecryptTextFromMemory(buffer, tDESalg.Key, tDESalg.IV);
+                byte[] buffer = Convert.FromBase64String(cipherText);
+                return DecryptTextFromMemory(buffer, provider.Key, provider.IV);
+            }
         }
 
         #region Utilities
@@ -102,7 +118,7 @@ namespace Nop.Services.Security
         {
             using (var ms = new MemoryStream()) {
                 using (var cs = new CryptoStream(ms, new TripleDESCryptoServiceProvider().CreateEncryptor(key, iv), CryptoStreamMode.Write)) {
-                    byte[] toEncrypt = new UnicodeEncoding().GetBytes(data);
+                    byte[] toEncrypt = Encoding.Unicode.GetBytes(data);
                     cs.Write(toEncrypt, 0, toEncrypt.Length);
                     cs.FlushFinalBlock();
                 }
@@ -116,8 +132,10 @@ namespace Nop.Services.Security
             using (var ms = new MemoryStream(data)) {
                 using (var cs = new CryptoStream(ms, new TripleDESCryptoServiceProvider().CreateDecryptor(key, iv), CryptoStreamMode.Read))
                 {
-                    var sr = new StreamReader(cs, new UnicodeEncoding());
-                    return sr.ReadLine();
+                    using (var sr = new StreamReader(cs, Encoding.Unicode))
+                    {
+                        return sr.ReadToEnd();
+                    }
                 }
             }
         }

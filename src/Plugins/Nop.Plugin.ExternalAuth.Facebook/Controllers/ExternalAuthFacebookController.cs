@@ -72,7 +72,7 @@ namespace Nop.Plugin.ExternalAuth.Facebook.Controllers
                 model.ClientSecret_OverrideForStore = _settingService.SettingExists(facebookExternalAuthSettings, x => x.ClientSecret, storeScope);
             }
 
-            return View("~/Plugins/ExternalAuth.Facebook/Views/ExternalAuthFacebook/Configure.cshtml", model);
+            return View("~/Plugins/ExternalAuth.Facebook/Views/Configure.cshtml", model);
         }
 
         [HttpPost]
@@ -97,16 +97,9 @@ namespace Nop.Plugin.ExternalAuth.Facebook.Controllers
             /* We do not clear cache after each setting update.
              * This behavior can increase performance because cached settings will not be cleared 
              * and loaded from database after each update */
-            if (model.ClientKeyIdentifier_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(facebookExternalAuthSettings, x => x.ClientKeyIdentifier, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(facebookExternalAuthSettings, x => x.ClientKeyIdentifier, storeScope);
-
-            if (model.ClientSecret_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(facebookExternalAuthSettings, x => x.ClientSecret, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(facebookExternalAuthSettings, x => x.ClientSecret, storeScope);
-
+            _settingService.SaveSettingOverridablePerStore(facebookExternalAuthSettings, x => x.ClientKeyIdentifier, model.ClientKeyIdentifier_OverrideForStore , storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(facebookExternalAuthSettings, x => x.ClientSecret, model.ClientSecret_OverrideForStore, storeScope, false);
+           
             //now clear settings cache
             _settingService.ClearCache();
 
@@ -118,7 +111,7 @@ namespace Nop.Plugin.ExternalAuth.Facebook.Controllers
         [ChildActionOnly]
         public ActionResult PublicInfo()
         {
-            return View("~/Plugins/ExternalAuth.Facebook/Views/ExternalAuthFacebook/PublicInfo.cshtml");
+            return View("~/Plugins/ExternalAuth.Facebook/Views/PublicInfo.cshtml");
         }
 
         [NonAction]
@@ -128,7 +121,8 @@ namespace Nop.Plugin.ExternalAuth.Facebook.Controllers
             if (processor == null ||
                 !processor.IsMethodActive(_externalAuthenticationSettings) ||
                 !processor.PluginDescriptor.Installed ||
-                !_pluginFinder.AuthenticateStore(processor.PluginDescriptor, _storeContext.CurrentStore.Id))
+                !_pluginFinder.AuthenticateStore(processor.PluginDescriptor, _storeContext.CurrentStore.Id) ||
+                !_pluginFinder.AuthorizedForUser(processor.PluginDescriptor, _workContext.CurrentCustomer))
                 throw new NopException("Facebook module cannot be loaded");
 
             var viewModel = new LoginModel();

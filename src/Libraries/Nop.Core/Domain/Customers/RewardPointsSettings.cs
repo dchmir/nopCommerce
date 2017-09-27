@@ -1,5 +1,4 @@
 ﻿using Nop.Core.Configuration;
-using Nop.Core.Domain.Orders;
 
 namespace Nop.Core.Domain.Customers
 {
@@ -34,16 +33,16 @@ namespace Nop.Core.Domain.Customers
         /// Gets or sets a number of points awarded for purchases
         /// </summary>
         public int PointsForPurchases_Points { get; set; }
-        
-        /// <summary>
-        /// Points are awarded when the order status is
-        /// </summary>
-        public OrderStatus PointsForPurchases_Awarded { get; set; }
 
         /// <summary>
-        /// Points are canceled when the order is
+        /// Gets or sets a delay before activation points
         /// </summary>
-        public OrderStatus PointsForPurchases_Canceled { get; set; }
+        public int ActivationDelay { get; set; }
+
+        /// <summary>
+        /// Gets or sets the period of activation delay
+        /// </summary>
+        public int ActivationDelayPeriodId { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether "You will earn" message should be displayed
@@ -54,5 +53,10 @@ namespace Nop.Core.Domain.Customers
         /// Gets or sets a value indicating whether all reward points are accumulated in one balance for all stores and they can be used in any store. Otherwise, each store has its own rewards points and they can only be used in that store.
         /// </summary>
         public bool PointsAccumulatedForAllStores { get; set; }
+
+        /// <summary>
+        /// Gets or sets the page size is for history of reward points on my account page
+        /// </summary>
+        public int PageSize { get; set; }
     }
 }

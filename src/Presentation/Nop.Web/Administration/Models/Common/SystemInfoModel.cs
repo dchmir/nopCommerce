@@ -34,6 +34,9 @@ namespace Nop.Admin.Models.Common
         [NopResourceDisplayName("Admin.System.SystemInfo.UTCTime")]
         public DateTime UtcTime { get; set; }
 
+        [NopResourceDisplayName("Admin.System.SystemInfo.CurrentUserTime")]
+        public DateTime CurrentUserTime { get; set; }
+
         [NopResourceDisplayName("Admin.System.SystemInfo.HTTPHOST")]
         public string HttpHost { get; set; }
 
@@ -53,6 +56,8 @@ namespace Nop.Admin.Models.Common
         {
             public string FullName { get; set; }
             public string Location { get; set; }
+            public bool IsDebug { get; set; }
+            public DateTime? BuildDate { get; set; }
         }
     }
 }

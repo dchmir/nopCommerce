@@ -10,11 +10,12 @@ namespace Nop.Admin.Models.Orders
     [Validator(typeof(ReturnRequestValidator))]
     public partial class ReturnRequestModel : BaseNopEntityModel
     {
-        [NopResourceDisplayName("Admin.ReturnRequests.Fields.ID")]
-        public override int Id { get; set; }
-
-        [NopResourceDisplayName("Admin.ReturnRequests.Fields.Order")]
+        [NopResourceDisplayName("Admin.ReturnRequests.Fields.CustomNumber")]
+        public string CustomNumber { get; set; }
+        
         public int OrderId { get; set; }
+        [NopResourceDisplayName("Admin.ReturnRequests.Fields.CustomOrderNumber")]
+        public string CustomOrderNumber { get; set; }
 
         [NopResourceDisplayName("Admin.ReturnRequests.Fields.Customer")]
         public int CustomerId { get; set; }
@@ -24,6 +25,7 @@ namespace Nop.Admin.Models.Orders
         public int ProductId { get; set; }
         [NopResourceDisplayName("Admin.ReturnRequests.Fields.Product")]
         public string ProductName { get; set; }
+        public string AttributeInfo { get; set; }
 
         [NopResourceDisplayName("Admin.ReturnRequests.Fields.Quantity")]
         public int Quantity { get; set; }
@@ -39,6 +41,9 @@ namespace Nop.Admin.Models.Orders
         [AllowHtml]
         [NopResourceDisplayName("Admin.ReturnRequests.Fields.CustomerComments")]
         public string CustomerComments { get; set; }
+
+        [NopResourceDisplayName("Admin.ReturnRequests.Fields.UploadedFile")]
+        public Guid UploadedFileGuid { get; set; }
 
         [AllowHtml]
         [NopResourceDisplayName("Admin.ReturnRequests.Fields.StaffNotes")]

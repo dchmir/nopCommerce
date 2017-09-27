@@ -17,9 +17,13 @@ namespace Nop.Admin.Models.Settings
         public bool DisplayDiscontinuedMessageForUnpublishedProducts { get; set; }
         public bool DisplayDiscontinuedMessageForUnpublishedProducts_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ShowProductSku")]
-        public bool ShowProductSku { get; set; }
-        public bool ShowProductSku_OverrideForStore { get; set; }
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ShowSkuOnProductDetailsPage")]
+        public bool ShowSkuOnProductDetailsPage { get; set; }
+        public bool ShowSkuOnProductDetailsPage_OverrideForStore { get; set; }
+
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ShowSkuOnCatalogPages")]
+        public bool ShowSkuOnCatalogPages { get; set; }
+        public bool ShowSkuOnCatalogPages_OverrideForStore { get; set; }
 
         [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ShowManufacturerPartNumber")]
         public bool ShowManufacturerPartNumber { get; set; }
@@ -74,9 +78,25 @@ namespace Nop.Admin.Models.Settings
         public bool AllowAnonymousUsersToReviewProduct { get; set; }
         public bool AllowAnonymousUsersToReviewProduct_OverrideForStore { get; set; }
 
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ProductReviewPossibleOnlyAfterPurchasing")]
+        public bool ProductReviewPossibleOnlyAfterPurchasing { get; set; }
+        public bool ProductReviewPossibleOnlyAfterPurchasing_OverrideForStore { get; set; }
+
         [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.NotifyStoreOwnerAboutNewProductReviews")]
         public bool NotifyStoreOwnerAboutNewProductReviews { get; set; }
         public bool NotifyStoreOwnerAboutNewProductReviews_OverrideForStore { get; set; }
+
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ShowProductReviewsPerStore")]
+        public bool ShowProductReviewsPerStore { get; set; }
+        public bool ShowProductReviewsPerStore_OverrideForStore { get; set; }
+
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ShowProductReviewsTabOnAccountPage")]
+        public bool ShowProductReviewsTabOnAccountPage { get; set; }
+        public bool ShowProductReviewsOnAccountPage_OverrideForStore { get; set; }
+
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ProductReviewsPageSizeOnAccountPage")]
+        public int ProductReviewsPageSizeOnAccountPage { get; set; }
+        public bool ProductReviewsPageSizeOnAccountPage_OverrideForStore { get; set; }
 
         [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.EmailAFriendEnabled")]
         public bool EmailAFriendEnabled { get; set; }
@@ -174,26 +194,6 @@ namespace Nop.Admin.Models.Settings
         public bool IncludeFullDescriptionInCompareProducts { get; set; }
         public bool IncludeFullDescriptionInCompareProducts_OverrideForStore { get; set; }
         
-        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.IgnoreDiscounts")]
-        public bool IgnoreDiscounts { get; set; }
-        public bool IgnoreDiscounts_OverrideForStore { get; set; }
-
-        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.IgnoreFeaturedProducts")]
-        public bool IgnoreFeaturedProducts { get; set; }
-        public bool IgnoreFeaturedProducts_OverrideForStore { get; set; }
-
-        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.IgnoreAcl")]
-        public bool IgnoreAcl { get; set; }
-        public bool IgnoreAcl_OverrideForStore { get; set; }
-
-        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.IgnoreStoreLimitations")]
-        public bool IgnoreStoreLimitations { get; set; }
-        public bool IgnoreStoreLimitations_OverrideForStore { get; set; }
-
-        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.CacheProductPrices")]
-        public bool CacheProductPrices { get; set; }
-        public bool CacheProductPrices_OverrideForStore { get; set; }
-
         [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ManufacturersBlockItemsToDisplay")]
         public int ManufacturersBlockItemsToDisplay { get; set; }
         public bool ManufacturersBlockItemsToDisplay_OverrideForStore { get; set; }
@@ -221,5 +221,20 @@ namespace Nop.Admin.Models.Settings
         [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.DisplayTaxShippingInfoOrderDetailsPage")]
         public bool DisplayTaxShippingInfoOrderDetailsPage { get; set; }
         public bool DisplayTaxShippingInfoOrderDetailsPage_OverrideForStore { get; set; }
+
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ExportImportProductAttributes")]
+        public bool ExportImportProductAttributes { get; set; }
+        public bool ExportImportProductAttributes_OverrideForStore { get; set; }
+        
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.IgnoreDiscounts")]
+        public bool IgnoreDiscounts { get; set; }
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.IgnoreFeaturedProducts")]
+        public bool IgnoreFeaturedProducts { get; set; }
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.IgnoreAcl")]
+        public bool IgnoreAcl { get; set; }
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.IgnoreStoreLimitations")]
+        public bool IgnoreStoreLimitations { get; set; }
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.CacheProductPrices")]
+        public bool CacheProductPrices { get; set; }
     }
 }

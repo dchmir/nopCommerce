@@ -125,17 +125,22 @@ namespace Nop.Services.Catalog
             
             manufacturer.Deleted = true;
             UpdateManufacturer(manufacturer);
+
+            //event notification
+            _eventPublisher.EntityDeleted(manufacturer);
         }
 
         /// <summary>
         /// Gets all manufacturers
         /// </summary>
         /// <param name="manufacturerName">Manufacturer name</param>
+        /// <param name="storeId">Store identifier; 0 if you want to get all records</param>
         /// <param name="pageIndex">Page index</param>
         /// <param name="pageSize">Page size</param>
         /// <param name="showHidden">A value indicating whether to show hidden records</param>
         /// <returns>Manufacturers</returns>
         public virtual IPagedList<Manufacturer> GetAllManufacturers(string manufacturerName = "",
+            int storeId = 0,
             int pageIndex = 0,
             int pageSize = int.MaxValue, 
             bool showHidden = false)
@@ -146,11 +151,11 @@ namespace Nop.Services.Catalog
             if (!String.IsNullOrWhiteSpace(manufacturerName))
                 query = query.Where(m => m.Name.Contains(manufacturerName));
             query = query.Where(m => !m.Deleted);
-            query = query.OrderBy(m => m.DisplayOrder);
+            query = query.OrderBy(m => m.DisplayOrder).ThenBy(m => m.Id);
 
-            if (!showHidden && (!_catalogSettings.IgnoreAcl || !_catalogSettings.IgnoreStoreLimitations))
-            { 
-                if (!_catalogSettings.IgnoreAcl)
+            if ((storeId > 0 && !_catalogSettings.IgnoreStoreLimitations) || (!showHidden && !_catalogSettings.IgnoreAcl))
+            {
+                if (!showHidden && !_catalogSettings.IgnoreAcl)
                 {
                     //ACL (access control list)
                     var allowedCustomerRolesIds = _workContext.CurrentCustomer.GetCustomerRoleIds();
@@ -161,15 +166,14 @@ namespace Nop.Services.Catalog
                             where !m.SubjectToAcl || allowedCustomerRolesIds.Contains(acl.CustomerRoleId)
                             select m;
                 }
-                if (!_catalogSettings.IgnoreStoreLimitations)
+                if (storeId > 0 && !_catalogSettings.IgnoreStoreLimitations)
                 {
                     //Store mapping
-                    var currentStoreId = _storeContext.CurrentStore.Id;
                     query = from m in query
                             join sm in _storeMappingRepository.Table
                             on new { c1 = m.Id, c2 = "Manufacturer" } equals new { c1 = sm.EntityId, c2 = sm.EntityName } into m_sm
                             from sm in m_sm.DefaultIfEmpty()
-                            where !m.LimitedToStores || currentStoreId == sm.StoreId
+                            where !m.LimitedToStores || storeId == sm.StoreId
                             select m;
                 }
                 //only distinct manufacturers (group by ID)
@@ -178,7 +182,7 @@ namespace Nop.Services.Catalog
                             into mGroup
                             orderby mGroup.Key
                             select mGroup.FirstOrDefault();
-                query = query.OrderBy(m => m.DisplayOrder);
+                query = query.OrderBy(m => m.DisplayOrder).ThenBy(m => m.Id);
             }
 
             return new PagedList<Manufacturer>(query, pageIndex, pageSize);
@@ -278,7 +282,7 @@ namespace Nop.Services.Catalog
                             where pm.ManufacturerId == manufacturerId &&
                                   !p.Deleted &&
                                   (showHidden || p.Published)
-                            orderby pm.DisplayOrder
+                            orderby pm.DisplayOrder, pm.Id
                             select pm;
 
                 if (!showHidden && (!_catalogSettings.IgnoreAcl || !_catalogSettings.IgnoreStoreLimitations))
@@ -314,7 +318,7 @@ namespace Nop.Services.Catalog
                             into pmGroup
                             orderby pmGroup.Key
                             select pmGroup.FirstOrDefault();
-                    query = query.OrderBy(pm => pm.DisplayOrder);
+                    query = query.OrderBy(pm => pm.DisplayOrder).ThenBy(pm => pm.Id);
                 }
 
                 var productManufacturers = new PagedList<ProductManufacturer>(query, pageIndex, pageSize);
@@ -341,7 +345,7 @@ namespace Nop.Services.Catalog
                             where pm.ProductId == productId &&
                                 !m.Deleted &&
                                 (showHidden || m.Published)
-                            orderby pm.DisplayOrder
+                            orderby pm.DisplayOrder, pm.Id
                             select pm;
 
 
@@ -379,7 +383,7 @@ namespace Nop.Services.Catalog
                             into mGroup
                             orderby mGroup.Key
                             select mGroup.FirstOrDefault();
-                    query = query.OrderBy(pm => pm.DisplayOrder);
+                    query = query.OrderBy(pm => pm.DisplayOrder).ThenBy(pm => pm.Id);
                 }
 
                 var productManufacturers = query.ToList();
@@ -436,6 +440,39 @@ namespace Nop.Services.Catalog
 
             //event notification
             _eventPublisher.EntityUpdated(productManufacturer);
+        }
+
+
+        /// <summary>
+        /// Get manufacturer IDs for products
+        /// </summary>
+        /// <param name="productIds">Products IDs</param>
+        /// <returns>Manufacturer IDs for products</returns>
+        public virtual IDictionary<int, int[]> GetProductManufacturerIds(int[] productIds)
+        {
+            var query = _productManufacturerRepository.Table;
+
+            return query.Where(p => productIds.Contains(p.ProductId))
+                .Select(p => new {p.ProductId, p.ManufacturerId}).ToList()
+                .GroupBy(a => a.ProductId)
+                .ToDictionary(items => items.Key, items => items.Select(a => a.ManufacturerId).ToArray());
+        }
+
+
+        /// <summary>
+        /// Returns a list of names of not existing manufacturers
+        /// </summary>
+        /// <param name="manufacturerNames">The names of the manufacturers to check</param>
+        /// <returns>List of names not existing manufacturers</returns>
+        public virtual string[] GetNotExistingManufacturers(string[] manufacturerNames)
+        {
+            if (manufacturerNames == null)
+                throw new ArgumentNullException("manufacturerNames");
+
+            var query = _manufacturerRepository.Table;
+            var queryFilter = manufacturerNames.Distinct().ToArray();
+            var filter = query.Select(m => m.Name).Where(m => queryFilter.Contains(m)).ToList();
+            return queryFilter.Except(filter).ToArray();
         }
 
         #endregion

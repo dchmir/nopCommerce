@@ -10,6 +10,8 @@ namespace Nop.Admin.Models.Catalog
     [Validator(typeof(ProductReviewValidator))]
     public partial class ProductReviewModel : BaseNopEntityModel
     {
+        [NopResourceDisplayName("Admin.Catalog.ProductReviews.Fields.Store")]
+        public string StoreName { get; set; }
         [NopResourceDisplayName("Admin.Catalog.ProductReviews.Fields.Product")]
         public int ProductId { get; set; }
         [NopResourceDisplayName("Admin.Catalog.ProductReviews.Fields.Product")]
@@ -28,6 +30,10 @@ namespace Nop.Admin.Models.Catalog
         [NopResourceDisplayName("Admin.Catalog.ProductReviews.Fields.ReviewText")]
         public string ReviewText { get; set; }
 
+        [AllowHtml]
+        [NopResourceDisplayName("Admin.Catalog.ProductReviews.Fields.ReplyText")]
+        public string ReplyText { get; set; }
+
         [NopResourceDisplayName("Admin.Catalog.ProductReviews.Fields.Rating")]
         public int Rating { get; set; }
 
@@ -36,5 +42,8 @@ namespace Nop.Admin.Models.Catalog
 
         [NopResourceDisplayName("Admin.Catalog.ProductReviews.Fields.CreatedOn")]
         public DateTime CreatedOn { get; set; }
+
+        //vendor
+        public bool IsLoggedInAsVendor { get; set; }
     }
 }

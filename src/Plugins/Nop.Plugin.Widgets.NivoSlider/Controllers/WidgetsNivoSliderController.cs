@@ -1,4 +1,5 @@
-﻿using System.Web.Mvc;
+﻿using System.Linq;
+using System.Web.Mvc;
 using Nop.Core;
 using Nop.Core.Caching;
 using Nop.Plugin.Widgets.NivoSlider.Infrastructure.Cache;
@@ -95,7 +96,7 @@ namespace Nop.Plugin.Widgets.NivoSlider.Controllers
                 model.Link5_OverrideForStore = _settingService.SettingExists(nivoSliderSettings, x => x.Link5, storeScope);
             }
 
-            return View("~/Plugins/Widgets.NivoSlider/Views/WidgetsNivoSlider/Configure.cshtml", model);
+            return View("~/Plugins/Widgets.NivoSlider/Views/Configure.cshtml", model);
         }
 
         [HttpPost]
@@ -106,6 +107,17 @@ namespace Nop.Plugin.Widgets.NivoSlider.Controllers
             //load settings for a chosen store scope
             var storeScope = this.GetActiveStoreScopeConfiguration(_storeService, _workContext);
             var nivoSliderSettings = _settingService.LoadSetting<NivoSliderSettings>(storeScope);
+
+            //get previous picture identifiers
+            var previousPictureIds = new[] 
+            {
+                nivoSliderSettings.Picture1Id,
+                nivoSliderSettings.Picture2Id,
+                nivoSliderSettings.Picture3Id,
+                nivoSliderSettings.Picture4Id,
+                nivoSliderSettings.Picture5Id
+            };
+
             nivoSliderSettings.Picture1Id = model.Picture1Id;
             nivoSliderSettings.Text1 = model.Text1;
             nivoSliderSettings.Link1 = model.Link1;
@@ -125,83 +137,42 @@ namespace Nop.Plugin.Widgets.NivoSlider.Controllers
             /* We do not clear cache after each setting update.
              * This behavior can increase performance because cached settings will not be cleared 
              * and loaded from database after each update */
-            if (model.Picture1Id_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Picture1Id, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Picture1Id, storeScope);
-            
-            if (model.Text1_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Text1, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Text1, storeScope);
-            
-            if (model.Link1_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Link1, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Link1, storeScope);
-            
-            if (model.Picture2Id_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Picture2Id, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Picture2Id, storeScope);
-            
-            if (model.Text2_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Text2, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Text2, storeScope);
-            
-            if (model.Link2_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Link2, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Link2, storeScope);
-            
-            if (model.Picture3Id_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Picture3Id, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Picture3Id, storeScope);
-            
-            if (model.Text3_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Text3, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Text3, storeScope);
-            
-            if (model.Link3_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Link3, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Link3, storeScope);
-            
-            if (model.Picture4Id_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Picture4Id, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Picture4Id, storeScope);
-            
-            if (model.Text4_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Text4, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Text4, storeScope);
-
-            if (model.Link4_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Link4, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Link4, storeScope);
-
-            if (model.Picture5Id_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Picture5Id, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Picture5Id, storeScope);
-
-            if (model.Text5_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Text5, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Text5, storeScope);
-
-            if (model.Link5_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(nivoSliderSettings, x => x.Link5, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(nivoSliderSettings, x => x.Link5, storeScope);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Picture1Id, model.Picture1Id_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Text1, model.Text1_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Link1, model.Link1_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Picture2Id, model.Picture2Id_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Text2, model.Text2_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Link2, model.Link2_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Picture3Id, model.Picture3Id_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Text3, model.Text3_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Link3, model.Link3_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Picture4Id, model.Picture4Id_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Text4, model.Text4_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Link4, model.Link4_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Picture5Id, model.Picture5Id_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Text5, model.Text5_OverrideForStore, storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(nivoSliderSettings, x => x.Link5, model.Link5_OverrideForStore, storeScope, false);
             
             //now clear settings cache
             _settingService.ClearCache();
+            
+            //get current picture identifiers
+            var currentPictureIds = new[]
+            {
+                nivoSliderSettings.Picture1Id,
+                nivoSliderSettings.Picture2Id,
+                nivoSliderSettings.Picture3Id,
+                nivoSliderSettings.Picture4Id,
+                nivoSliderSettings.Picture5Id
+            };
+
+            //delete an old picture (if deleted or updated)
+            foreach (var pictureId in previousPictureIds.Except(currentPictureIds))
+            { 
+                var previousPicture = _pictureService.GetPictureById(pictureId);
+                if (previousPicture != null)
+                    _pictureService.DeletePicture(previousPicture);
+            }
 
             SuccessNotification(_localizationService.GetResource("Admin.Plugins.Saved"));
             return Configure();
@@ -240,7 +211,7 @@ namespace Nop.Plugin.Widgets.NivoSlider.Controllers
                 return Content("");
 
 
-            return View("~/Plugins/Widgets.NivoSlider/Views/WidgetsNivoSlider/PublicInfo.cshtml", model);
+            return View("~/Plugins/Widgets.NivoSlider/Views/PublicInfo.cshtml", model);
         }
     }
 }

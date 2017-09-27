@@ -48,12 +48,12 @@ namespace Nop.Admin.Controllers
             this._importManager = importManager;
 		}
 
-		public ActionResult Index()
+		public virtual ActionResult Index()
 		{
 			return RedirectToAction("List");
 		}
 
-		public ActionResult List()
+		public virtual ActionResult List()
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageNewsletterSubscribers))
                 return AccessDeniedView();
@@ -91,10 +91,10 @@ namespace Nop.Admin.Controllers
 		}
 
 		[HttpPost]
-		public ActionResult SubscriptionList(DataSourceRequest command, NewsLetterSubscriptionListModel model)
+		public virtual ActionResult SubscriptionList(DataSourceRequest command, NewsLetterSubscriptionListModel model)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageNewsletterSubscribers))
-                return AccessDeniedView();
+                return AccessDeniedKendoGridJson();
 
             bool? isActive = null;
             if (model.ActiveId == 1)
@@ -102,8 +102,13 @@ namespace Nop.Admin.Controllers
             else if (model.ActiveId == 2)
                 isActive = false;
 
+            var startDateValue = (model.StartDate == null) ? null
+                : (DateTime?)_dateTimeHelper.ConvertToUtcTime(model.StartDate.Value, _dateTimeHelper.CurrentTimeZone);
+            var endDateValue = (model.EndDate == null) ? null
+                : (DateTime?)_dateTimeHelper.ConvertToUtcTime(model.EndDate.Value, _dateTimeHelper.CurrentTimeZone).AddDays(1);
+
             var newsletterSubscriptions = _newsLetterSubscriptionService.GetAllNewsLetterSubscriptions(model.SearchEmail,
-                model.StoreId, isActive, model.CustomerRoleId,
+                startDateValue, endDateValue, model.StoreId, isActive, model.CustomerRoleId,
                 command.Page - 1, command.PageSize);
 
             var gridModel = new DataSourceResult
@@ -123,7 +128,7 @@ namespace Nop.Admin.Controllers
 		}
 
         [HttpPost]
-        public ActionResult SubscriptionUpdate([Bind(Exclude = "CreatedOn")] NewsLetterSubscriptionModel model)
+        public virtual ActionResult SubscriptionUpdate([Bind(Exclude = "CreatedOn")] NewsLetterSubscriptionModel model)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageNewsletterSubscribers))
                 return AccessDeniedView();
@@ -142,7 +147,7 @@ namespace Nop.Admin.Controllers
         }
 
         [HttpPost]
-        public ActionResult SubscriptionDelete(int id)
+        public virtual ActionResult SubscriptionDelete(int id)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageNewsletterSubscribers))
                 return AccessDeniedView();
@@ -157,7 +162,7 @@ namespace Nop.Admin.Controllers
 
         [HttpPost, ActionName("List")]
         [FormValueRequired("exportcsv")]
-		public ActionResult ExportCsv(NewsLetterSubscriptionListModel model)
+		public virtual ActionResult ExportCsv(NewsLetterSubscriptionListModel model)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageNewsletterSubscribers))
                 return AccessDeniedView();
@@ -168,17 +173,22 @@ namespace Nop.Admin.Controllers
             else if (model.ActiveId == 2)
                 isActive = false;
 
-			var subscriptions = _newsLetterSubscriptionService.GetAllNewsLetterSubscriptions(model.SearchEmail,
-                model.StoreId, isActive, model.CustomerRoleId);
+            var startDateValue = (model.StartDate == null) ? null
+                : (DateTime?)_dateTimeHelper.ConvertToUtcTime(model.StartDate.Value, _dateTimeHelper.CurrentTimeZone);
+            var endDateValue = (model.EndDate == null) ? null
+                : (DateTime?)_dateTimeHelper.ConvertToUtcTime(model.EndDate.Value, _dateTimeHelper.CurrentTimeZone).AddDays(1);
+
+            var subscriptions = _newsLetterSubscriptionService.GetAllNewsLetterSubscriptions(model.SearchEmail,
+                startDateValue, endDateValue, model.StoreId, isActive, model.CustomerRoleId);
 
 		    string result = _exportManager.ExportNewsletterSubscribersToTxt(subscriptions);
 
             string fileName = String.Format("newsletter_emails_{0}_{1}.txt", DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss"), CommonHelper.GenerateRandomDigitCode(4));
-			return File(Encoding.UTF8.GetBytes(result), "text/csv", fileName);
+			return File(Encoding.UTF8.GetBytes(result), MimeTypes.TextCsv, fileName);
 		}
 
         [HttpPost]
-        public ActionResult ImportCsv(FormCollection form)
+        public virtual ActionResult ImportCsv(FormCollection form)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageNewsletterSubscribers))
                 return AccessDeniedView();

@@ -54,12 +54,14 @@ namespace Nop.Plugin.ExternalAuth.Facebook.Core
             {
                 using (var responseStream = response.GetResponseStream())
                 {
-                    var reader = new StreamReader(responseStream);
-                    var responseFromServer = reader.ReadToEnd();
-                    var userInfo = JObject.Parse(responseFromServer);
-                    if (userInfo["email"] != null)
+                    using (var reader = new StreamReader(responseStream))
                     {
-                        return userInfo["email"].ToString();
+                        var responseFromServer = reader.ReadToEnd();
+                        var userInfo = JObject.Parse(responseFromServer);
+                        if (userInfo["email"] != null)
+                        {
+                            return userInfo["email"].ToString();
+                        }
                     }
                 }
             }
@@ -149,10 +151,6 @@ namespace Nop.Plugin.ExternalAuth.Facebook.Core
         {
             string url = string.Format("{0}plugins/externalauthFacebook/logincallback/", _webHelper.GetStoreLocation());
             return new Uri(url);
-            //var builder = new UriBuilder(_httpContext.Request.Url.GetLeftPart(UriPartial.Authority));
-            //var path = _httpContext.Request.ApplicationPath + "/Plugins/ExternalAuthFacebook/LoginCallback/";
-            //builder.Path = path.Replace(@"//", @"/");
-            //return builder.Uri;
         }
 
         private Uri GenerateServiceLoginUrl()
