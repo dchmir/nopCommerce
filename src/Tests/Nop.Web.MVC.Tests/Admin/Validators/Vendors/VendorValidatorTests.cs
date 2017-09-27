@@ -1,6 +1,6 @@
 ﻿using FluentValidation.TestHelper;
-using Nop.Admin.Models.Vendors;
-using Nop.Admin.Validators.Vendors;
+using Nop.Web.Areas.Admin.Models.Vendors;
+using Nop.Web.Areas.Admin.Validators.Vendors;
 using Nop.Web.MVC.Tests.Public.Validators;
 using NUnit.Framework;
 
@@ -14,7 +14,7 @@ namespace Nop.Web.MVC.Tests.Admin.Validators.Vendors
         [SetUp]
         public new void Setup()
         {
-            _validator = new VendorValidator(_localizationService);
+            _validator = new VendorValidator(_localizationService, null);
         }
 
         [Test]

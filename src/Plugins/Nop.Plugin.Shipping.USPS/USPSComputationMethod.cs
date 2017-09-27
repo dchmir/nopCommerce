@@ -9,7 +9,6 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Text;
-using System.Web.Routing;
 using System.Xml;
 using Nop.Core;
 using Nop.Core.Domain.Directory;
@@ -46,6 +45,7 @@ namespace Nop.Plugin.Shipping.USPS
         private readonly USPSSettings _uspsSettings;
         private readonly MeasureSettings _measureSettings;
         private readonly IPriceCalculationService _priceCalculationService;
+        private readonly IWebHelper _webHelper;
 
         #endregion
 
@@ -53,7 +53,8 @@ namespace Nop.Plugin.Shipping.USPS
         public USPSComputationMethod(IMeasureService measureService,
             IShippingService shippingService, ISettingService settingService,
             USPSSettings uspsSettings, MeasureSettings measureSettings,
-            IPriceCalculationService priceCalculationService)
+            IPriceCalculationService priceCalculationService,
+            IWebHelper webHelper)
         {
             this._measureService = measureService;
             this._shippingService = shippingService;
@@ -61,6 +62,7 @@ namespace Nop.Plugin.Shipping.USPS
             this._uspsSettings = uspsSettings;
             this._measureSettings = measureSettings;
             this._priceCalculationService = priceCalculationService;
+            this._webHelper = webHelper;
         }
         #endregion
 
@@ -80,7 +82,7 @@ namespace Nop.Plugin.Shipping.USPS
         /// Is a request domestic
         /// </summary>
         /// <param name="getShippingOptionRequest">Request</param>
-        /// <returns>Rsult</returns>
+        /// <returns>Result</returns>
         protected bool IsDomesticRequest(GetShippingOptionRequest getShippingOptionRequest)
         {
             //Origin Country must be USA, Collect USA from list of countries
@@ -115,7 +117,8 @@ namespace Nop.Plugin.Shipping.USPS
         {
             var usedMeasureWeight = _measureService.GetMeasureWeightBySystemKeyword(MEASUREWEIGHTSYSTEMKEYWORD);
             if (usedMeasureWeight == null)
-                throw new NopException(string.Format("USPS shipping service. Could not load \"{0}\" measure weight", MEASUREWEIGHTSYSTEMKEYWORD));
+                throw new NopException(
+                    $"USPS shipping service. Could not load \"{MEASUREWEIGHTSYSTEMKEYWORD}\" measure weight");
 
             var baseusedMeasureWeight = _measureService.GetMeasureWeightById(_measureSettings.BaseWeightId);
             if (baseusedMeasureWeight == null)
@@ -123,16 +126,15 @@ namespace Nop.Plugin.Shipping.USPS
             
             var usedMeasureDimension = _measureService.GetMeasureDimensionBySystemKeyword(MEASUREDIMENSIONSYSTEMKEYWORD);
             if (usedMeasureDimension == null)
-                throw new NopException(string.Format("USPS shipping service. Could not load \"{0}\" measure dimension", MEASUREDIMENSIONSYSTEMKEYWORD));
+                throw new NopException(
+                    $"USPS shipping service. Could not load \"{MEASUREDIMENSIONSYSTEMKEYWORD}\" measure dimension");
 
             var baseusedMeasureDimension = _measureService.GetMeasureDimensionById(_measureSettings.BaseDimensionId);
-            if (usedMeasureDimension == null)
+            if (baseusedMeasureDimension == null)
                 throw new NopException("Primary dimension can't be loaded");
 
-            decimal lengthTmp, widthTmp, heightTmp;
-            _shippingService.GetDimensions(getShippingOptionRequest.Items, out widthTmp, out lengthTmp, out heightTmp);
-
-
+            _shippingService.GetDimensions(getShippingOptionRequest.Items, out decimal widthTmp, out decimal lengthTmp, out decimal heightTmp);
+            
             int length = Convert.ToInt32(Math.Ceiling(lengthTmp / baseusedMeasureDimension.Ratio * usedMeasureDimension.Ratio));
             int height = Convert.ToInt32(Math.Ceiling(heightTmp / baseusedMeasureDimension.Ratio * usedMeasureDimension.Ratio));
             int width = Convert.ToInt32(Math.Ceiling(widthTmp / baseusedMeasureDimension.Ratio * usedMeasureDimension.Ratio));
@@ -367,24 +369,24 @@ namespace Nop.Plugin.Shipping.USPS
                         totalPackages = 1;
 
                     int pounds2 = pounds / totalPackages;
-                    //we don't use ounces
-                    int ounces2 = ounces / totalPackages;
-                    int height2 = height / totalPackages;
-                    int width2 = width / totalPackages;
-                    int length2 = length / totalPackages;
                     if (pounds2 < 1)
                         pounds2 = 1;
-                    if (height2 < 1)
-                        height2 = 1;
-                    if (width2 < 1)
-                        width2 = 1;
-                    if (length2 < 1)
-                        length2 = 1;
+                    //we don't use ounces
+                    int ounces2 = ounces / totalPackages;
+                    //int height2 = height / totalPackages;
+                    //int width2 = width / totalPackages;
+                    //int length2 = length / totalPackages;
+                    //if (height2 < 1)
+                    //    height2 = 1; // Why assign a 1 if it is assigned below 12? Perhaps this is a mistake.
+                    //if (width2 < 1)
+                    //    width2 = 1; // Similarly
+                    //if (length2 < 1)
+                    //    length2 = 1; // Similarly
 
-                    //little hack here for international requests
-                    length2 = 12;
-                    width2 = 12;
-                    height2 = 12;
+                    //little hack here for international requests (uncomment the code above when fixed)
+                    var length2 = 12;
+                    var width2 = 12;
+                    var height2 = 12;
                     var packageSize2 = GetPackageSize(length2, height2, width2);
                     int girth2 = height2 + height2 + width2 + width2;
 
@@ -424,20 +426,23 @@ namespace Nop.Plugin.Shipping.USPS
 
         private string DoRequest(string url, string requestString)
         {
-            byte[] bytes = new ASCIIEncoding().GetBytes(requestString);
+            byte[] bytes = Encoding.ASCII.GetBytes(requestString);
             var request = (HttpWebRequest)WebRequest.Create(url);
-            request.Method = "POST";
-            request.ContentType = "application/x-www-form-urlencoded";
+            request.Method = WebRequestMethods.Http.Post;
+            request.ContentType = MimeTypes.ApplicationXWwwFormUrlencoded;
             request.ContentLength = bytes.Length;
-            var requestStream = request.GetRequestStream();
-            requestStream.Write(bytes, 0, bytes.Length);
-            requestStream.Close();
-            var response = request.GetResponse();
-            string responseXml;
-            using (var reader = new StreamReader(response.GetResponseStream()))
-                responseXml = reader.ReadToEnd();
+            using (var requestStream = request.GetRequestStream())
+            {
+                requestStream.Write(bytes, 0, bytes.Length);
+            }
+            using (var response = request.GetResponse())
+            {
+                string responseXml;
+                using (var reader = new StreamReader(response.GetResponseStream()))
+                    responseXml = reader.ReadToEnd();
 
-            return responseXml;
+                return responseXml;
+            }
         }
 
         private bool IsPackageTooLarge(int length, int height, int width)
@@ -517,8 +522,8 @@ namespace Nop.Plugin.Shipping.USPS
                                 tr.MoveToAttribute(i);
                                 if (tr.Name.Equals(classStr))
                                 {
-                                    // Add delimiters [] so that single digit IDs aren't found in mutli-digit IDs                                    
-                                    serviceId = String.Format("[{0}]", tr.Value);
+                                    // Add delimiters [] so that single digit IDs aren't found in multi-digit IDs                                    
+                                    serviceId = $"[{tr.Value}]";
                                     break;
                                 }
                             }
@@ -560,6 +565,14 @@ namespace Nop.Plugin.Shipping.USPS
                         }
                         while (!((tr.Name == postageStr) && (tr.NodeType == XmlNodeType.EndElement)));
 
+                        //go to the next rate if the "First-Class Mail Letter" is not in the list of domestic services to offer
+                        if (isDomestic && !carrierServicesOffered.Contains("[letter]"))
+                        {
+                            var option = serviceCode.ToLowerInvariant();
+                            if (option.Contains("letter") || option.Contains("postcard"))
+                                continue;
+                        }
+
                         //USPS issue fixed
                         var reg = (char)174; // registered sign "\u00AE"
                         string tm = "\u2122"; // trademark sign
@@ -595,7 +608,7 @@ namespace Nop.Plugin.Shipping.USPS
         public GetShippingOptionResponse GetShippingOptions(GetShippingOptionRequest getShippingOptionRequest)
         {
             if (getShippingOptionRequest == null)
-                throw new ArgumentNullException("getShippingOptionRequest");
+                throw new ArgumentNullException(nameof(getShippingOptionRequest));
 
             var response = new GetShippingOptionResponse();
 
@@ -613,7 +626,16 @@ namespace Nop.Plugin.Shipping.USPS
             
             bool isDomestic = IsDomesticRequest(getShippingOptionRequest);
             string requestString = CreateRequest(_uspsSettings.Username, _uspsSettings.Password, getShippingOptionRequest);
-            string responseXml = DoRequest(_uspsSettings.Url, requestString);
+            string responseXml = "";
+            try
+            {
+                responseXml = DoRequest(_uspsSettings.Url, requestString);
+            }
+            catch (Exception exc)
+            {
+                response.AddError($"USPS Service is currently unavailable, try again later. {exc.Message}");
+                return response;
+            }
             string error = "";
             var shippingOptions = ParseResponse(responseXml, isDomestic, ref error);
             if (String.IsNullOrEmpty(error))
@@ -621,7 +643,7 @@ namespace Nop.Plugin.Shipping.USPS
                 foreach (var shippingOption in shippingOptions)
                 {
                     if (!shippingOption.Name.ToLower().StartsWith("usps"))
-                        shippingOption.Name = string.Format("USPS {0}", shippingOption.Name);
+                        shippingOption.Name = $"USPS {shippingOption.Name}";
                     shippingOption.Rate += _uspsSettings.AdditionalHandlingCharge;
                     response.ShippingOptions.Add(shippingOption);
                 }
@@ -645,18 +667,13 @@ namespace Nop.Plugin.Shipping.USPS
         }
 
         /// <summary>
-        /// Gets a route for provider configuration
+        /// Gets a configuration page URL
         /// </summary>
-        /// <param name="actionName">Action name</param>
-        /// <param name="controllerName">Controller name</param>
-        /// <param name="routeValues">Route values</param>
-        public void GetConfigurationRoute(out string actionName, out string controllerName, out RouteValueDictionary routeValues)
+        public override string GetConfigurationPageUrl()
         {
-            actionName = "Configure";
-            controllerName = "ShippingUSPS";
-            routeValues = new RouteValueDictionary { { "Namespaces", "Nop.Plugin.Shipping.USPS.Controllers" }, { "area", null } };
+            return $"{_webHelper.GetStoreLocation()}Admin/ShippingUSPS/Configure";
         }
-        
+
         /// <summary>
         /// Install plugin
         /// </summary>

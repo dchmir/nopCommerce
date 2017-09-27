@@ -67,7 +67,7 @@ namespace Nop.Services.Common
         public virtual void DeleteAttribute(GenericAttribute attribute)
         {
             if (attribute == null)
-                throw new ArgumentNullException("attribute");
+                throw new ArgumentNullException(nameof(attribute));
 
             _genericAttributeRepository.Delete(attribute);
 
@@ -76,6 +76,27 @@ namespace Nop.Services.Common
 
             //event notification
             _eventPublisher.EntityDeleted(attribute);
+        }
+
+        /// <summary>
+        /// Deletes an attributes
+        /// </summary>
+        /// <param name="attributes">Attributes</param>
+        public virtual void DeleteAttributes(IList<GenericAttribute> attributes)
+        {
+            if (attributes == null)
+                throw new ArgumentNullException(nameof(attributes));
+
+            _genericAttributeRepository.Delete(attributes);
+
+            //cache
+            _cacheManager.RemoveByPattern(GENERICATTRIBUTE_PATTERN_KEY);
+
+            //event notification
+            foreach (var attribute in attributes)
+            {
+                _eventPublisher.EntityDeleted(attribute);
+            }
         }
 
         /// <summary>
@@ -98,7 +119,7 @@ namespace Nop.Services.Common
         public virtual void InsertAttribute(GenericAttribute attribute)
         {
             if (attribute == null)
-                throw new ArgumentNullException("attribute");
+                throw new ArgumentNullException(nameof(attribute));
 
             _genericAttributeRepository.Insert(attribute);
             
@@ -116,7 +137,7 @@ namespace Nop.Services.Common
         public virtual void UpdateAttribute(GenericAttribute attribute)
         {
             if (attribute == null)
-                throw new ArgumentNullException("attribute");
+                throw new ArgumentNullException(nameof(attribute));
 
             _genericAttributeRepository.Update(attribute);
 
@@ -158,10 +179,10 @@ namespace Nop.Services.Common
         public virtual void SaveAttribute<TPropType>(BaseEntity entity, string key, TPropType value, int storeId = 0)
         {
             if (entity == null)
-                throw new ArgumentNullException("entity");
+                throw new ArgumentNullException(nameof(entity));
 
             if (key == null)
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
 
             string keyGroup = entity.GetUnproxiedEntityType().Name;
 

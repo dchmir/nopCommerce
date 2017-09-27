@@ -50,7 +50,7 @@ namespace Nop.Services.Logging
 
         #endregion
 
-        #region Utitilities
+        #region Utilities
 
         /// <summary>
         /// Gets a value indicating whether this message should not be logged
@@ -59,7 +59,7 @@ namespace Nop.Services.Logging
         /// <returns>Result</returns>
         protected virtual bool IgnoreLog(string message)
         {
-            if (_commonSettings.IgnoreLogWordlist.Count == 0)
+            if (!_commonSettings.IgnoreLogWordlist.Any())
                 return false;
 
             if (String.IsNullOrWhiteSpace(message))
@@ -97,9 +97,21 @@ namespace Nop.Services.Logging
         public virtual void DeleteLog(Log log)
         {
             if (log == null)
-                throw new ArgumentNullException("log");
+                throw new ArgumentNullException(nameof(log));
 
             _logRepository.Delete(log);
+        }
+
+        /// <summary>
+        /// Deletes a log items
+        /// </summary>
+        /// <param name="logs">Log items</param>
+        public virtual void DeleteLogs(IList<Log> logs)
+        {
+            if (logs == null)
+                throw new ArgumentNullException(nameof(logs));
+
+            _logRepository.Delete(logs);
         }
 
         /// <summary>
@@ -115,7 +127,7 @@ namespace Nop.Services.Logging
 
                 //do all databases support "Truncate command"?
                 string logTableName = _dbContext.GetTableName<Log>();
-                _dbContext.ExecuteSqlCommand(String.Format("TRUNCATE TABLE [{0}]", logTableName));
+                _dbContext.ExecuteSqlCommand($"TRUNCATE TABLE [{logTableName}]");
             }
             else
             {

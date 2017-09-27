@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Web.Hosting;
+using Nop.Core.Infrastructure;
 
 namespace Nop.Core.Data
 {
@@ -12,7 +12,7 @@ namespace Nop.Core.Data
     {
         protected const char separator = ':';
         protected const string filename = "Settings.txt";
-               
+
         /// <summary>
         /// Parse settings
         /// </summary>
@@ -71,32 +71,29 @@ namespace Nop.Core.Data
             if (settings == null)
                 return "";
 
-            return string.Format("DataProvider: {0}{2}DataConnectionString: {1}{2}",
-                                 settings.DataProvider,
-                                 settings.DataConnectionString,
-                                 Environment.NewLine
-                );
+            return $"DataProvider: {settings.DataProvider}{Environment.NewLine}DataConnectionString: {settings.DataConnectionString}{Environment.NewLine}";
         }
 
         /// <summary>
         /// Load settings
         /// </summary>
         /// <param name="filePath">File path; pass null to use default settings file path</param>
+        /// <param name="reloadSettings">Indicates whether to reload data, if they already loaded</param>
         /// <returns></returns>
-        public virtual DataSettings LoadSettings(string filePath = null)
+        public virtual DataSettings LoadSettings(string filePath = null, bool reloadSettings = false)
         {
-            if (String.IsNullOrEmpty(filePath))
-            {
-                //use webHelper.MapPath instead of HostingEnvironment.MapPath which is not available in unit tests
+            if (!reloadSettings && Singleton<DataSettings>.Instance != null)
+                return Singleton<DataSettings>.Instance;
+
+            if (string.IsNullOrEmpty(filePath))
                 filePath = Path.Combine(CommonHelper.MapPath("~/App_Data/"), filename);
-            }
-            if (File.Exists(filePath))
-            {
-                string text = File.ReadAllText(filePath);
-                return ParseSettings(text);
-            }
-            
-            return new DataSettings();
+
+            if (!File.Exists(filePath))
+                return new DataSettings();
+
+            var text = File.ReadAllText(filePath);
+            Singleton<DataSettings>.Instance = ParseSettings(text);
+            return Singleton<DataSettings>.Instance;
         }
 
         /// <summary>
@@ -106,9 +103,10 @@ namespace Nop.Core.Data
         public virtual void SaveSettings(DataSettings settings)
         {
             if (settings == null)
-                throw new ArgumentNullException("settings");
+                throw new ArgumentNullException(nameof(settings));
 
-            //use webHelper.MapPath instead of HostingEnvironment.MapPath which is not available in unit tests
+            Singleton<DataSettings>.Instance = settings;
+
             string filePath = Path.Combine(CommonHelper.MapPath("~/App_Data/"), filename);
             if (!File.Exists(filePath))
             {

@@ -1,7 +1,18 @@
 ﻿namespace Nop.Core.Plugins
 {
+    /// <summary>
+    /// Base plugin
+    /// </summary>
     public abstract class BasePlugin : IPlugin
     {
+        /// <summary>
+        /// Gets a configuration page URL
+        /// </summary>
+        public virtual string GetConfigurationPageUrl()
+        {
+            return null;
+        }
+
         /// <summary>
         /// Gets or sets the plugin descriptor
         /// </summary>

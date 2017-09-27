@@ -1,6 +1,6 @@
 ﻿using FluentValidation.TestHelper;
-using Nop.Admin.Models.Catalog;
-using Nop.Admin.Validators.Catalog;
+using Nop.Web.Areas.Admin.Models.Catalog;
+using Nop.Web.Areas.Admin.Validators.Catalog;
 using Nop.Web.MVC.Tests.Public.Validators;
 using NUnit.Framework;
 
@@ -14,7 +14,7 @@ namespace Nop.Web.MVC.Tests.Admin.Validators.Catalog
         [SetUp]
         public new void Setup()
         {
-            _validator = new ManufacturerValidator(_localizationService);
+            _validator = new ManufacturerValidator(_localizationService, null);
         }
 
         [Test]

@@ -1,47 +1,65 @@
-﻿using System.Collections.Generic;
-using System.Web.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Nop.Core;
 using Nop.Plugin.Payments.PurchaseOrder.Models;
 using Nop.Services.Configuration;
 using Nop.Services.Localization;
-using Nop.Services.Payments;
+using Nop.Services.Security;
 using Nop.Services.Stores;
+using Nop.Web.Framework;
 using Nop.Web.Framework.Controllers;
+using Nop.Web.Framework.Mvc.Filters;
 
 namespace Nop.Plugin.Payments.PurchaseOrder.Controllers
 {
+    [AuthorizeAdmin]
+    [Area(AreaNames.Admin)]
     public class PaymentPurchaseOrderController : BasePaymentController
     {
-        private readonly IWorkContext _workContext;
-        private readonly IStoreService _storeService;
-        private readonly ISettingService _settingService;
-        private readonly ILocalizationService _localizationService;
+        #region Fields
 
-        public PaymentPurchaseOrderController(IWorkContext workContext,
-            IStoreService storeService,
+        private readonly ILocalizationService _localizationService;
+        private readonly IPermissionService _permissionService;
+        private readonly ISettingService _settingService;
+        private readonly IStoreService _storeService;
+        private readonly IWorkContext _workContext;
+
+        #endregion
+
+        #region Ctor
+
+        public PaymentPurchaseOrderController(ILocalizationService localizationService,
+            IPermissionService permissionService,
             ISettingService settingService,
-            ILocalizationService localizationService)
+            IStoreService storeService,
+            IWorkContext workContext)
         {
-            this._workContext = workContext;
-            this._storeService = storeService;
-            this._settingService = settingService;
             this._localizationService = localizationService;
+            this._permissionService = permissionService;
+            this._settingService = settingService;
+            this._storeService = storeService;
+            this._workContext = workContext;
         }
-        
-        [AdminAuthorize]
-        [ChildActionOnly]
-        public ActionResult Configure()
+
+        #endregion
+
+        #region Methods
+
+        public IActionResult Configure()
         {
+            if (!_permissionService.Authorize(StandardPermissionProvider.ManagePaymentMethods))
+                return AccessDeniedView();
+
             //load settings for a chosen store scope
             var storeScope = this.GetActiveStoreScopeConfiguration(_storeService, _workContext);
             var purchaseOrderPaymentSettings = _settingService.LoadSetting<PurchaseOrderPaymentSettings>(storeScope);
 
-            var model = new ConfigurationModel();
-            model.AdditionalFee = purchaseOrderPaymentSettings.AdditionalFee;
-            model.AdditionalFeePercentage = purchaseOrderPaymentSettings.AdditionalFeePercentage;
-            model.ShippableProductRequired = purchaseOrderPaymentSettings.ShippableProductRequired;
-
-            model.ActiveStoreScopeConfiguration = storeScope;
+            var model = new ConfigurationModel
+            {
+                AdditionalFee = purchaseOrderPaymentSettings.AdditionalFee,
+                AdditionalFeePercentage = purchaseOrderPaymentSettings.AdditionalFeePercentage,
+                ShippableProductRequired = purchaseOrderPaymentSettings.ShippableProductRequired,
+                ActiveStoreScopeConfiguration = storeScope
+            };
             if (storeScope > 0)
             {
                 model.AdditionalFee_OverrideForStore = _settingService.SettingExists(purchaseOrderPaymentSettings, x => x.AdditionalFee, storeScope);
@@ -49,14 +67,16 @@ namespace Nop.Plugin.Payments.PurchaseOrder.Controllers
                 model.ShippableProductRequired_OverrideForStore = _settingService.SettingExists(purchaseOrderPaymentSettings, x => x.ShippableProductRequired, storeScope);
             }
 
-            return View("~/Plugins/Payments.PurchaseOrder/Views/PaymentPurchaseOrder/Configure.cshtml", model);
+            return View("~/Plugins/Payments.PurchaseOrder/Views/Configure.cshtml", model);
         }
 
         [HttpPost]
-        [AdminAuthorize]
-        [ChildActionOnly]
-        public ActionResult Configure(ConfigurationModel model)
+        [AdminAntiForgery]
+        public IActionResult Configure(ConfigurationModel model)
         {
+            if (!_permissionService.Authorize(StandardPermissionProvider.ManagePaymentMethods))
+                return AccessDeniedView();
+
             if (!ModelState.IsValid)
                 return Configure();
 
@@ -72,21 +92,10 @@ namespace Nop.Plugin.Payments.PurchaseOrder.Controllers
             /* We do not clear cache after each setting update.
              * This behavior can increase performance because cached settings will not be cleared 
              * and loaded from database after each update */
-            if (model.AdditionalFee_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(purchaseOrderPaymentSettings, x => x.AdditionalFee, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(purchaseOrderPaymentSettings, x => x.AdditionalFee, storeScope);
-
-            if (model.AdditionalFeePercentage_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(purchaseOrderPaymentSettings, x => x.AdditionalFeePercentage, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(purchaseOrderPaymentSettings, x => x.AdditionalFeePercentage, storeScope);
-
-            if (model.ShippableProductRequired_OverrideForStore || storeScope == 0)
-                _settingService.SaveSetting(purchaseOrderPaymentSettings, x => x.ShippableProductRequired, storeScope, false);
-            else if (storeScope > 0)
-                _settingService.DeleteSetting(purchaseOrderPaymentSettings, x => x.ShippableProductRequired, storeScope);
-
+            _settingService.SaveSettingOverridablePerStore(purchaseOrderPaymentSettings, x => x.AdditionalFee, model.AdditionalFee_OverrideForStore , storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(purchaseOrderPaymentSettings, x => x.AdditionalFeePercentage, model.AdditionalFeePercentage_OverrideForStore , storeScope, false);
+            _settingService.SaveSettingOverridablePerStore(purchaseOrderPaymentSettings, x => x.ShippableProductRequired, model.ShippableProductRequired_OverrideForStore, storeScope, false);
+            
             //now clear settings cache
             _settingService.ClearCache();
 
@@ -95,31 +104,6 @@ namespace Nop.Plugin.Payments.PurchaseOrder.Controllers
             return Configure();
         }
 
-        [ChildActionOnly]
-        public ActionResult PaymentInfo()
-        {
-            var model = new PaymentInfoModel();
-            
-            //set postback values
-            var form = this.Request.Form;
-            model.PurchaseOrderNumber = form["PurchaseOrderNumber"];
-
-            return View("~/Plugins/Payments.PurchaseOrder/Views/PaymentPurchaseOrder/PaymentInfo.cshtml", model);
-        }
-
-        [NonAction]
-        public override IList<string> ValidatePaymentForm(FormCollection form)
-        {
-            var warnings = new List<string>();
-            return warnings;
-        }
-
-        [NonAction]
-        public override ProcessPaymentRequest GetPaymentInfo(FormCollection form)
-        {
-            var paymentInfo = new ProcessPaymentRequest();
-            paymentInfo.CustomValues.Add(_localizationService.GetResource("Plugins.Payment.PurchaseOrder.PurchaseOrderNumber"), form["PurchaseOrderNumber"]);
-            return paymentInfo;
-        }
+        #endregion
     }
 }

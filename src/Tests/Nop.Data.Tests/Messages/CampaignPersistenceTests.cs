@@ -1,5 +1,4 @@
 ﻿using System;
-using Nop.Core.Domain.Messages;
 using Nop.Tests;
 using NUnit.Framework;
 
@@ -11,13 +10,7 @@ namespace Nop.Data.Tests.Messages
         [Test]
         public void Can_save_and_load_campaign()
         {
-            var campaign = new Campaign
-            {
-                Name = "Name 1",
-                Subject = "Subject 1",
-                Body = "Body 1",
-                CreatedOnUtc = new DateTime(2010,01,02)
-            };
+            var campaign = this.GetTestCampaign();
 
             var fromDb = SaveAndLoadEntity(campaign);
             fromDb.ShouldNotBeNull();
@@ -25,6 +18,9 @@ namespace Nop.Data.Tests.Messages
             fromDb.Subject.ShouldEqual("Subject 1");
             fromDb.Body.ShouldEqual("Body 1");
             fromDb.CreatedOnUtc.ShouldEqual(new DateTime(2010, 01, 02));
+            fromDb.DontSendBeforeDateUtc.ShouldEqual(new DateTime(2016, 2, 23));
+            fromDb.CustomerRoleId.ShouldEqual(1);
+            fromDb.StoreId.ShouldEqual(1);
         }
     }
 }

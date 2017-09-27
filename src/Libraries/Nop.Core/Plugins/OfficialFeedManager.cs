@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.IO;
-using System.Net;
-using System.Web;
-using System.Xml;
 using System.Linq;
+using System.Net;
+using System.Xml;
+using Nop.Core.Extensions;
 
 namespace Nop.Core.Plugins
 {
@@ -25,13 +25,15 @@ namespace Nop.Core.Plugins
             request.Timeout = 5000;
             using (var response = request.GetResponse())
             {
-                var dataStream = response.GetResponseStream();
-                var reader = new StreamReader(dataStream);
-                string responseFromServer = reader.ReadToEnd();
+                using (var dataStream = response.GetResponseStream())
+                using (var reader = new StreamReader(dataStream))
+                {
+                    string responseFromServer = reader.ReadToEnd();
 
-                var xmlDoc = new XmlDocument();
-                xmlDoc.LoadXml(responseFromServer);
-                return xmlDoc;
+                    var xmlDoc = new XmlDocument();
+                    xmlDoc.LoadXml(responseFromServer);
+                    return xmlDoc;
+                }
             }
         }
 
@@ -82,7 +84,9 @@ namespace Nop.Core.Plugins
 
             //pageSize parameter is currently ignored by official site (set to 15)
             var xmlDoc = GetDocument("category={0}&version={1}&price={2}&pageIndex={3}&pageSize={4}&searchTerm={5}",
-                categoryId, versionId, price, pageIndex, pageSize, HttpUtility.UrlEncode(searchTerm));
+                categoryId, versionId, price, pageIndex, pageSize, WebUtility.UrlEncode(searchTerm));
+
+
 
             var list = xmlDoc.SelectNodes(@"//extensions/extension").Cast<XmlNode>().Select(node => new OfficialFeedPlugin
             {

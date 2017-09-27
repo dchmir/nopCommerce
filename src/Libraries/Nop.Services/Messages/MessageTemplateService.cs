@@ -94,7 +94,7 @@ namespace Nop.Services.Messages
         public virtual void DeleteMessageTemplate(MessageTemplate messageTemplate)
         {
             if (messageTemplate == null)
-                throw new ArgumentNullException("messageTemplate");
+                throw new ArgumentNullException(nameof(messageTemplate));
 
             _messageTemplateRepository.Delete(messageTemplate);
 
@@ -111,7 +111,7 @@ namespace Nop.Services.Messages
         public virtual void InsertMessageTemplate(MessageTemplate messageTemplate)
         {
             if (messageTemplate == null)
-                throw new ArgumentNullException("messageTemplate");
+                throw new ArgumentNullException(nameof(messageTemplate));
 
             _messageTemplateRepository.Insert(messageTemplate);
 
@@ -128,7 +128,7 @@ namespace Nop.Services.Messages
         public virtual void UpdateMessageTemplate(MessageTemplate messageTemplate)
         {
             if (messageTemplate == null)
-                throw new ArgumentNullException("messageTemplate");
+                throw new ArgumentNullException(nameof(messageTemplate));
 
             _messageTemplateRepository.Update(messageTemplate);
 
@@ -167,7 +167,6 @@ namespace Nop.Services.Messages
             {
                 var query = _messageTemplateRepository.Table;
                 query = query.Where(t => t.Name == messageTemplateName);
-                query = query.OrderBy(t => t.Id);
                 query = query.OrderBy(t => t.Id);
                 var templates = query.ToList();
 
@@ -228,7 +227,7 @@ namespace Nop.Services.Messages
         public virtual MessageTemplate CopyMessageTemplate(MessageTemplate messageTemplate)
         {
             if (messageTemplate == null)
-                throw new ArgumentNullException("messageTemplate");
+                throw new ArgumentNullException(nameof(messageTemplate));
 
             var mtCopy = new MessageTemplate
             {
@@ -240,6 +239,8 @@ namespace Nop.Services.Messages
                 AttachedDownloadId = messageTemplate.AttachedDownloadId,
                 EmailAccountId = messageTemplate.EmailAccountId,
                 LimitedToStores = messageTemplate.LimitedToStores,
+                DelayBeforeSend = messageTemplate.DelayBeforeSend,
+                DelayPeriod = messageTemplate.DelayPeriod
             };
 
             InsertMessageTemplate(mtCopy);

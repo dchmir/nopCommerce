@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Web.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Nop.Core;
 using Nop.Core.Caching;
 using Nop.Core.Domain.Catalog;
 using Nop.Services.Catalog;
 using Nop.Services.Localization;
-using Nop.Web.Framework.Mvc;
+using Nop.Web.Framework.Mvc.Models;
 using Nop.Web.Framework.UI.Paging;
 using Nop.Web.Infrastructure.Cache;
 
@@ -29,6 +29,7 @@ namespace Nop.Web.Models.Catalog
             this.AvailableSortOptions = new List<SelectListItem>();
             this.AvailableViewModes = new List<SelectListItem>();
             this.PageSizeOptions = new List<SelectListItem>();
+
             this.PriceRangeFilter = new PriceRangeFilterModel();
             this.SpecificationFilter = new SpecificationFilterModel();
         }
@@ -50,6 +51,7 @@ namespace Nop.Web.Models.Catalog
         /// A value indicating whether product sorting is allowed
         /// </summary>
         public bool AllowProductSorting { get; set; }
+
         /// <summary>
         /// Available sort options
         /// </summary>
@@ -76,7 +78,7 @@ namespace Nop.Web.Models.Catalog
         /// <summary>
         /// Order by
         /// </summary>
-        public int OrderBy { get; set; }
+        public int? OrderBy { get; set; }
 
         /// <summary>
         /// Product sorting
@@ -200,7 +202,7 @@ namespace Nop.Web.Models.Catalog
             public virtual void LoadPriceRangeFilters(string priceRangeStr, IWebHelper webHelper, IPriceFormatter priceFormatter)
             {
                 var priceRangeList = GetPriceRangeList(priceRangeStr);
-                if (priceRangeList.Count > 0)
+                if (priceRangeList.Any())
                 {
                     this.Enabled = true;
 
@@ -334,7 +336,7 @@ namespace Nop.Web.Models.Catalog
                     url = webHelper.RemoveQueryString(url, exclude);
                 return url;
             }
-            
+
             /// <summary>
             /// Generate URL of already filtered items
             /// </summary>
@@ -345,7 +347,7 @@ namespace Nop.Web.Models.Catalog
                 if (optionIds == null)
                     return "";
 
-                string result = string.Join(",", optionIds);
+                string result = string.Join(",", optionIds.OrderBy(id => id));
                 return result;
             }
 
@@ -368,8 +370,7 @@ namespace Nop.Web.Models.Catalog
 
                 foreach (var spec in alreadyFilteredSpecsStr.Split(new [] { ',' }, StringSplitOptions.RemoveEmptyEntries))
                 {
-                    int specId;
-                    int.TryParse(spec.Trim(), out specId);
+                    int.TryParse(spec.Trim(), out int specId);
                     if (!result.Contains(specId))
                         result.Add(specId);
                 }
@@ -388,97 +389,66 @@ namespace Nop.Web.Models.Catalog
             public virtual void PrepareSpecsFilters(IList<int> alreadyFilteredSpecOptionIds,
                 int[] filterableSpecificationAttributeOptionIds,
                 ISpecificationAttributeService specificationAttributeService, 
-                IWebHelper webHelper,
-                IWorkContext workContext,
-                ICacheManager cacheManager)
+                IWebHelper webHelper, IWorkContext workContext, ICacheManager cacheManager)
             {
-                string cacheKey = string.Format(ModelCacheEventConsumer.SPECS_FILTER_MODEL_KEY,
-                    filterableSpecificationAttributeOptionIds != null ? string.Join(",", filterableSpecificationAttributeOptionIds) : "",
-                    workContext.WorkingLanguage.Id);
-                var allFilters = cacheManager.Get(cacheKey, () =>
-                    specificationAttributeService
-                    .GetSpecificationAttributeOptionsByIds(filterableSpecificationAttributeOptionIds)
-                    .Select(sao =>
+                Enabled = false;
+                var optionIds = filterableSpecificationAttributeOptionIds != null
+                    ? string.Join(",", filterableSpecificationAttributeOptionIds) : string.Empty;
+                var cacheKey = string.Format(ModelCacheEventConsumer.SPECS_FILTER_MODEL_KEY, optionIds, workContext.WorkingLanguage.Id);
+
+                var allOptions = specificationAttributeService.GetSpecificationAttributeOptionsByIds(filterableSpecificationAttributeOptionIds);
+                var allFilters = cacheManager.Get(cacheKey, () => allOptions.Select(sao =>
+                    new SpecificationAttributeOptionFilter
                     {
-                        var sa = sao.SpecificationAttribute;
-                        return new SpecificationAttributeOptionFilter
-                        {
-                            SpecificationAttributeId = sa.Id,
-                            SpecificationAttributeName = sa.GetLocalized(x => x.Name, workContext.WorkingLanguage.Id),
-                            SpecificationAttributeDisplayOrder = sa.DisplayOrder,
-                            SpecificationAttributeOptionId = sao.Id,
-                            SpecificationAttributeOptionName = sao.GetLocalized(x => x.Name, workContext.WorkingLanguage.Id),
-                            SpecificationAttributeOptionDisplayOrder = sao.DisplayOrder
-                        };
-                    })
-                    .ToList());
+                        SpecificationAttributeId = sao.SpecificationAttribute.Id,
+                        SpecificationAttributeName = sao.SpecificationAttribute.GetLocalized(x => x.Name, workContext.WorkingLanguage.Id),
+                        SpecificationAttributeDisplayOrder = sao.SpecificationAttribute.DisplayOrder,
+                        SpecificationAttributeOptionId = sao.Id,
+                        SpecificationAttributeOptionName = sao.GetLocalized(x => x.Name, workContext.WorkingLanguage.Id),
+                        SpecificationAttributeOptionColorRgb = sao.ColorSquaresRgb,
+                        SpecificationAttributeOptionDisplayOrder = sao.DisplayOrder
+                    }).ToList());
+
+                if (!allFilters.Any())
+                    return;
 
                 //sort loaded options
                 allFilters = allFilters.OrderBy(saof => saof.SpecificationAttributeDisplayOrder)
                     .ThenBy(saof => saof.SpecificationAttributeName)
                     .ThenBy(saof => saof.SpecificationAttributeOptionDisplayOrder)
                     .ThenBy(saof => saof.SpecificationAttributeOptionName).ToList();
-                
-                //get already filtered specification options
-                var alreadyFilteredOptions = allFilters
-                    .Where(x => alreadyFilteredSpecOptionIds.Contains(x.SpecificationAttributeOptionId))
-                    .Select(x => x)
-                    .ToList();
-
-                //get not filtered specification options
-                var notFilteredOptions = new List<SpecificationAttributeOptionFilter>();
-                foreach (var saof in allFilters)
-                {
-                    //do not add already filtered specification options
-                    if (alreadyFilteredOptions.FirstOrDefault(x => x.SpecificationAttributeId == saof.SpecificationAttributeId) != null)
-                        continue;
-
-                    //else add it
-                    notFilteredOptions.Add(saof);
-                }
 
                 //prepare the model properties
-                if (alreadyFilteredOptions.Count > 0 || notFilteredOptions.Count > 0)
-                {
-                    this.Enabled = true;
-                    
-                    this.AlreadyFilteredItems = alreadyFilteredOptions.ToList().Select(x =>
-                    {
-                        var item = new SpecificationFilterItem();
-                        item.SpecificationAttributeName = x.SpecificationAttributeName;
-                        item.SpecificationAttributeOptionName = x.SpecificationAttributeOptionName;
+                Enabled = true;
+                var removeFilterUrl = webHelper.RemoveQueryString(webHelper.GetThisPageUrl(true), QUERYSTRINGPARAM);
+                RemoveFilterUrl = ExcludeQueryStringParams(removeFilterUrl, webHelper);
 
-                        return item;
+                //get already filtered specification options
+                var alreadyFilteredOptions = allFilters.Where(x => alreadyFilteredSpecOptionIds.Contains(x.SpecificationAttributeOptionId));
+                AlreadyFilteredItems = alreadyFilteredOptions.Select(x =>
+                    new SpecificationFilterItem
+                    {
+                        SpecificationAttributeName = x.SpecificationAttributeName,
+                        SpecificationAttributeOptionName = x.SpecificationAttributeOptionName,
+                        SpecificationAttributeOptionColorRgb = x.SpecificationAttributeOptionColorRgb
                     }).ToList();
 
-                    this.NotFilteredItems = notFilteredOptions.ToList().Select(x =>
-                    {
-                        var item = new SpecificationFilterItem();
-                        item.SpecificationAttributeName = x.SpecificationAttributeName;
-                        item.SpecificationAttributeOptionName = x.SpecificationAttributeOptionName;
-
-                        //filter URL
-                        var alreadyFilteredOptionIds = GetAlreadyFilteredSpecOptionIds(webHelper);
-                        if (!alreadyFilteredOptionIds.Contains(x.SpecificationAttributeOptionId))
-                            alreadyFilteredOptionIds.Add(x.SpecificationAttributeOptionId);
-                        string newQueryParam = GenerateFilteredSpecQueryParam(alreadyFilteredOptionIds);
-                        string filterUrl = webHelper.ModifyQueryString(webHelper.GetThisPageUrl(true), QUERYSTRINGPARAM + "=" + newQueryParam, null);
-                        filterUrl = ExcludeQueryStringParams(filterUrl, webHelper);
-                        item.FilterUrl = filterUrl;
-                        
-                        return item;
-                    }).ToList();
-
-
-                    //remove filter URL
-                    string removeFilterUrl = webHelper.RemoveQueryString(webHelper.GetThisPageUrl(true), QUERYSTRINGPARAM);
-                    removeFilterUrl = ExcludeQueryStringParams(removeFilterUrl, webHelper);
-                    this.RemoveFilterUrl = removeFilterUrl;
-                }
-                else
+                //get not filtered specification options
+                NotFilteredItems = allFilters.Except(alreadyFilteredOptions).Select(x =>
                 {
-                    this.Enabled = false;
-                }
+                    //filter URL
+                    var alreadyFiltered = alreadyFilteredSpecOptionIds.Concat(new List<int> { x.SpecificationAttributeOptionId });
+                    var queryString = $"{QUERYSTRINGPARAM}={GenerateFilteredSpecQueryParam(alreadyFiltered.ToList())}";
+                    var filterUrl = webHelper.ModifyQueryString(webHelper.GetThisPageUrl(true), queryString, null);
+
+                    return new SpecificationFilterItem()
+                    {
+                        SpecificationAttributeName = x.SpecificationAttributeName,
+                        SpecificationAttributeOptionName = x.SpecificationAttributeOptionName,
+                        SpecificationAttributeOptionColorRgb = x.SpecificationAttributeOptionColorRgb,
+                        FilterUrl = ExcludeQueryStringParams(filterUrl, webHelper)
+                    };
+                }).ToList();
             }
 
             #endregion
@@ -517,6 +487,10 @@ namespace Nop.Web.Models.Catalog
             /// Specification attribute option name
             /// </summary>
             public string SpecificationAttributeOptionName { get; set; }
+            /// <summary>
+            /// Specification attribute option color (RGB)
+            /// </summary>
+            public string SpecificationAttributeOptionColorRgb { get; set; }
             /// <summary>
             /// Filter URL
             /// </summary>

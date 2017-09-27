@@ -1,30 +1,24 @@
-﻿using System.IO;
-using System.Web.Mvc;
-using System.Web.UI;
+﻿using Microsoft.AspNetCore.Html;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Nop.Core.Infrastructure;
 
 namespace Nop.Web.Framework.Security.Captcha
 {
     public static class HtmlExtensions
     {
-        public static string GenerateCaptcha(this HtmlHelper helper)
+        public static IHtmlContent GenerateCaptcha(this IHtmlHelper helper)
         {
             var captchaSettings = EngineContext.Current.Resolve<CaptchaSettings>();
 
-            var theme = !string.IsNullOrEmpty(captchaSettings.ReCaptchaTheme) ? captchaSettings.ReCaptchaTheme : "white";
-            var captchaControl = new Recaptcha.RecaptchaControl
+            var captchaControl = new GRecaptchaControl(captchaSettings.ReCaptchaVersion)
             {
-                ID = "recaptcha",
-                Theme = theme,
+                Theme = captchaSettings.ReCaptchaTheme,
+                Id = "recaptcha",
                 PublicKey = captchaSettings.ReCaptchaPublicKey,
-                PrivateKey = captchaSettings.ReCaptchaPrivateKey
+                Language = captchaSettings.ReCaptchaLanguage
             };
-
-            var htmlWriter = new HtmlTextWriter(new StringWriter());
-
-            captchaControl.RenderControl(htmlWriter);
-
-            return htmlWriter.InnerWriter.ToString();
+            var captchaControlHtml = captchaControl.RenderControl();
+            return new HtmlString(captchaControlHtml);
         }
     }
 }

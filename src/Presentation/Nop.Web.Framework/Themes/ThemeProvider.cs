@@ -2,78 +2,103 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Xml;
+using Newtonsoft.Json;
 using Nop.Core;
 
 namespace Nop.Web.Framework.Themes
 {
+    /// <summary>
+    /// Represents a default theme provider implementation
+    /// </summary>
     public partial class ThemeProvider : IThemeProvider
     {
-		#region Fields
+        #region Constants
 
-        private readonly IList<ThemeConfiguration> _themeConfigurations = new List<ThemeConfiguration>();
-        private readonly string _basePath = string.Empty;
+        private const string ThemesPath = "~/Themes/";
+        private const string ThemeConfigurationFileName = "theme.json";
 
-		#endregion
+        #endregion
 
-		#region Constructors
+        #region Fields
 
-        public ThemeProvider(IWebHelper webHelper)
+        private IList<ThemeConfiguration> _themeConfigurations;
+
+        #endregion
+
+        #region Utilities
+
+        /// <summary>
+        /// Get theme configuration from the file
+        /// </summary>
+        /// <param name="filePath">Path to the configuration file</param>
+        /// <returns>Theme configuration</returns>
+        protected virtual ThemeConfiguration GeThemeConfiguration(string filePath)
         {
-            _basePath = webHelper.MapPath("~/Themes/");
-            LoadConfigurations();
-        }
+            var text = File.ReadAllText(filePath);
+            if (string.IsNullOrEmpty(text))
+                return new ThemeConfiguration();
 
-		#endregion 
-        
-        #region IThemeProvider
-        
-        public ThemeConfiguration GetThemeConfiguration(string themeName)
-        {
-            return _themeConfigurations
-                .SingleOrDefault(x => x.ThemeName.Equals(themeName, StringComparison.InvariantCultureIgnoreCase));
-        }
+            //get theme configuration from the JSON file
+            var themeConfiguration = JsonConvert.DeserializeObject<ThemeConfiguration>(text);
 
-        public IList<ThemeConfiguration> GetThemeConfigurations()
-        {
-            return _themeConfigurations;
-        }
+            //some validation
+            if (string.IsNullOrEmpty(themeConfiguration?.SystemName))
+                throw new Exception($"A theme configuration '{filePath}' has no system name");
 
-        public bool ThemeConfigurationExists(string themeName)
-        {
-            return GetThemeConfigurations().Any(configuration => configuration.ThemeName.Equals(themeName, StringComparison.InvariantCultureIgnoreCase));
+            if (_themeConfigurations?.Any(configuration => configuration.SystemName.Equals(themeConfiguration.SystemName, StringComparison.InvariantCultureIgnoreCase)) ?? false)
+                throw new Exception($"A theme with '{themeConfiguration.SystemName}' system name is already defined");
+
+            return themeConfiguration;
         }
 
         #endregion
 
-        #region Utility
+        #region Methods
 
-        private void LoadConfigurations()
+        /// <summary>
+        /// Get all theme configurations
+        /// </summary>
+        /// <returns>List of the theme configuration</returns>
+        public IList<ThemeConfiguration> GetThemeConfigurations()
         {
-            //TODO:Use IFileStorage?
-            foreach (string themeName in Directory.GetDirectories(_basePath))
+            if (_themeConfigurations == null)
             {
-                var configuration = CreateThemeConfiguration(themeName);
-                if(configuration != null)
+                //load all theme configurations
+                var themeFolder = new DirectoryInfo(CommonHelper.MapPath(ThemesPath));
+                _themeConfigurations = new List<ThemeConfiguration>();
+                foreach (var configurationFile in themeFolder.GetFiles(ThemeConfigurationFileName, SearchOption.AllDirectories))
                 {
-                    _themeConfigurations.Add(configuration);
+                    _themeConfigurations.Add(GeThemeConfiguration(configurationFile.FullName));
                 }
             }
+
+            return _themeConfigurations;
         }
 
-        private ThemeConfiguration CreateThemeConfiguration(string themePath)
+        /// <summary>
+        /// Get theme configuration by theme system name
+        /// </summary>
+        /// <param name="systemName">Theme system name</param>
+        /// <returns>Theme configuration</returns>
+        public ThemeConfiguration GetThemeConfigurationBySystemName(string systemName)
         {
-            var themeDirectory = new DirectoryInfo(themePath);
-            var themeConfigFile = new FileInfo(Path.Combine(themeDirectory.FullName, "theme.config"));
+            if (string.IsNullOrEmpty(systemName))
+                return null;
 
-            if(themeConfigFile.Exists)
-            {
-                var doc = new XmlDocument();
-                doc.Load(themeConfigFile.FullName);
-                return new ThemeConfiguration(themeDirectory.Name, themeDirectory.FullName, doc);
-            }
+            return GetThemeConfigurations().SingleOrDefault(configuration => configuration.SystemName.Equals(systemName, StringComparison.InvariantCultureIgnoreCase));
+        }
 
-            return null;
+        /// <summary>
+        /// Check whether theme configuration with specified system name exists
+        /// </summary>
+        /// <param name="systemName">Theme system name</param>
+        /// <returns>True if theme configuration exists; otherwise false</returns>
+        public bool ThemeConfigurationExists(string systemName)
+        {
+            if (string.IsNullOrEmpty(systemName))
+                return false;
+
+            return GetThemeConfigurations().Any(configuration => configuration.SystemName.Equals(systemName, StringComparison.InvariantCultureIgnoreCase));
         }
 
         #endregion

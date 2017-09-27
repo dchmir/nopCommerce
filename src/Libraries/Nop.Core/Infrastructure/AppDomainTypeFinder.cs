@@ -33,7 +33,7 @@ namespace Nop.Core.Infrastructure
             get { return AppDomain.CurrentDomain; }
         }
 
-        /// <summary>Gets or sets wether Nop should iterate assemblies in the app domain when loading Nop types. Loading patterns are applied when loading these assemblies.</summary>
+        /// <summary>Gets or sets whether Nop should iterate assemblies in the app domain when loading Nop types. Loading patterns are applied when loading these assemblies.</summary>
         public bool LoadAppDomainAssemblies
         {
             get { return loadAppDomainAssemblies; }
@@ -55,7 +55,7 @@ namespace Nop.Core.Infrastructure
         }
 
         /// <summary>Gets or sets the pattern for dll that will be investigated. For ease of use this defaults to match all but to increase performance you might want to configure a pattern that includes assemblies and your own.</summary>
-        /// <remarks>If you change this so that Nop assemblies arn't investigated (e.g. by not including something like "^Nop|..." you may break core functionality.</remarks>
+        /// <remarks>If you change this so that Nop assemblies aren't investigated (e.g. by not including something like "^Nop|..." you may break core functionality.</remarks>
         public string AssemblyRestrictToLoadingPattern
         {
             get { return assemblyRestrictToLoadingPattern; }
@@ -179,7 +179,7 @@ namespace Nop.Core.Infrastructure
         }
 
         /// <summary>
-        /// Adds specificly configured assemblies.
+        /// Adds specifically configured assemblies.
         /// </summary>
         /// <param name="addedAssemblyNames"></param>
         /// <param name="assemblies"></param>

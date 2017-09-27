@@ -44,6 +44,8 @@ namespace Nop.Services.News
 
         #region Methods
 
+        #region News
+
         /// <summary>
         /// Deletes a news
         /// </summary>
@@ -51,7 +53,7 @@ namespace Nop.Services.News
         public virtual void DeleteNews(NewsItem newsItem)
         {
             if (newsItem == null)
-                throw new ArgumentNullException("newsItem");
+                throw new ArgumentNullException(nameof(newsItem));
 
             _newsItemRepository.Delete(newsItem);
             
@@ -70,6 +72,17 @@ namespace Nop.Services.News
                 return null;
 
             return _newsItemRepository.GetById(newsId);
+        }
+
+        /// <summary>
+        /// Gets news
+        /// </summary>
+        /// <param name="newsIds">The news identifiers</param>
+        /// <returns>News</returns>
+        public virtual IList<NewsItem> GetNewsByIds(int[] newsIds)
+        {
+            var query = _newsItemRepository.Table;
+            return query.Where(p => newsIds.Contains(p.Id)).ToList();
         }
 
         /// <summary>
@@ -126,7 +139,7 @@ namespace Nop.Services.News
         public virtual void InsertNews(NewsItem news)
         {
             if (news == null)
-                throw new ArgumentNullException("news");
+                throw new ArgumentNullException(nameof(news));
 
             _newsItemRepository.Insert(news);
 
@@ -141,27 +154,58 @@ namespace Nop.Services.News
         public virtual void UpdateNews(NewsItem news)
         {
             if (news == null)
-                throw new ArgumentNullException("news");
+                throw new ArgumentNullException(nameof(news));
 
             _newsItemRepository.Update(news);
             
             //event notification
             _eventPublisher.EntityUpdated(news);
         }
-        
+
+        #endregion
+
+        #region News comments
+
         /// <summary>
         /// Gets all comments
         /// </summary>
         /// <param name="customerId">Customer identifier; 0 to load all records</param>
+        /// <param name="storeId">Store identifier; pass 0 to load all records</param>
+        /// <param name="newsItemId">News item ID; 0 or null to load all records</param>
+        /// <param name="approved">A value indicating whether to content is approved; null to load all records</param> 
+        /// <param name="fromUtc">Item creation from; null to load all records</param>
+        /// <param name="toUtc">Item creation to; null to load all records</param>
+        /// <param name="commentText">Search comment text; null to load all records</param>
         /// <returns>Comments</returns>
-        public virtual IList<NewsComment> GetAllComments(int customerId)
+        public virtual IList<NewsComment> GetAllComments(int customerId = 0, int storeId = 0, int? newsItemId = null,
+            bool? approved = null, DateTime? fromUtc = null, DateTime? toUtc = null, string commentText = null)
         {
-            var query = from c in _newsCommentRepository.Table
-                        orderby c.CreatedOnUtc
-                        where (customerId == 0 || c.CustomerId == customerId)
-                        select c;
-            var content = query.ToList();
-            return content;
+            var query = _newsCommentRepository.Table;
+
+            if (approved.HasValue)
+                query = query.Where(comment => comment.IsApproved == approved);
+
+            if (newsItemId > 0)
+                query = query.Where(comment => comment.NewsItemId == newsItemId);
+
+            if (customerId > 0)
+                query = query.Where(comment => comment.CustomerId == customerId);
+
+            if (storeId > 0)
+                query = query.Where(comment => comment.StoreId == storeId);
+
+            if (fromUtc.HasValue)
+                query = query.Where(comment => fromUtc.Value <= comment.CreatedOnUtc);
+
+            if (toUtc.HasValue)
+                query = query.Where(comment => toUtc.Value >= comment.CreatedOnUtc);
+
+            if (!string.IsNullOrEmpty(commentText))
+                query = query.Where(c => c.CommentText.Contains(commentText) || c.CommentTitle.Contains(commentText));
+
+            query = query.OrderBy(nc => nc.CreatedOnUtc);
+
+            return query.ToList();
         }
 
         /// <summary>
@@ -203,16 +247,56 @@ namespace Nop.Services.News
         }
 
         /// <summary>
+        /// Get the count of news comments
+        /// </summary>
+        /// <param name="newsItem">News item</param>
+        /// <param name="storeId">Store identifier; pass 0 to load all records</param>
+        /// <param name="isApproved">A value indicating whether to count only approved or not approved comments; pass null to get number of all comments</param>
+        /// <returns>Number of news comments</returns>
+        public virtual int GetNewsCommentsCount(NewsItem newsItem, int storeId = 0, bool? isApproved = null)
+        {
+            var query = _newsCommentRepository.Table.Where(comment => comment.NewsItemId == newsItem.Id);
+
+            if (storeId > 0)
+                query = query.Where(comment => comment.StoreId == storeId);
+
+            if (isApproved.HasValue)
+                query = query.Where(comment => comment.IsApproved == isApproved.Value);
+
+            return query.Count();
+        }
+
+        /// <summary>
         /// Deletes a news comment
         /// </summary>
         /// <param name="newsComment">News comment</param>
         public virtual void DeleteNewsComment(NewsComment newsComment)
         {
             if (newsComment == null)
-                throw new ArgumentNullException("newsComment");
+                throw new ArgumentNullException(nameof(newsComment));
 
             _newsCommentRepository.Delete(newsComment);
+
+            //event notification
+            _eventPublisher.EntityDeleted(newsComment);
         }
+
+        /// <summary>
+        /// Deletes a news comments
+        /// </summary>
+        /// <param name="newsComments">News comments</param>
+        public virtual void DeleteNewsComments(IList<NewsComment> newsComments)
+        {
+            if (newsComments == null)
+                throw new ArgumentNullException(nameof(newsComments));
+
+            foreach (var newsComment in newsComments)
+            {
+                DeleteNewsComment(newsComment);
+            }
+        }
+        
+        #endregion
 
         #endregion
     }
