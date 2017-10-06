@@ -382,6 +382,41 @@ namespace Nop.Web.Areas.Admin.Controllers
             return RedirectToAction("List");
         }
 
+	    [HttpPost, ActionName("List")]
+	    [FormValueRequired(FormValueRequirement.StartsWith, "delete-plugin-link-")]
+	    public virtual IActionResult Delete(IFormCollection form)
+	    {
+	        if (!_permissionService.Authorize(StandardPermissionProvider.ManagePlugins))
+	            return AccessDeniedView();
+
+	        try
+	        {
+	            //get plugin system name
+	            string systemName = null;
+	            foreach (var formValue in form.Keys)
+	                if (formValue.StartsWith("delete-plugin-link-", StringComparison.InvariantCultureIgnoreCase))
+	                    systemName = formValue.Substring("delete-plugin-link-".Length);
+
+	            var pluginDescriptor = _pluginFinder.GetPluginDescriptorBySystemName(systemName, LoadPluginsMode.All);
+	            if (!PluginManager.DeletePlugin(pluginDescriptor))
+                    return RedirectToAction("List");
+
+                //activity log
+                _customerActivityService.InsertActivity("DeletePlugin", _localizationService.GetResource("ActivityLog.DeletePlugin"), pluginDescriptor.FriendlyName);
+
+	            SuccessNotification(_localizationService.GetResource("Admin.Configuration.Plugins.Deleted"));
+
+	            //restart application
+	            _webHelper.RestartAppDomain();
+	        }
+	        catch (Exception exc)
+	        {
+	            ErrorNotification(exc);
+	        }
+
+	        return RedirectToAction("List");
+	    }
+
         [HttpPost, ActionName("List")]
         [FormValueRequired("plugin-reload-grid")]
         public virtual IActionResult ReloadList()

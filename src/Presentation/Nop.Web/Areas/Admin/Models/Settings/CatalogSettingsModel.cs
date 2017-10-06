@@ -227,6 +227,14 @@ namespace Nop.Web.Areas.Admin.Models.Settings
         [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ExportImportProductSpecificationAttributes")]
         public bool ExportImportProductSpecificationAttributes { get; set; }
         public bool ExportImportProductSpecificationAttributes_OverrideForStore { get; set; }
+        
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ExportImportProductCategoryBreadcrumb")]
+        public bool ExportImportProductCategoryBreadcrumb { get; set; }
+        public bool ExportImportProductCategoryBreadcrumb_OverrideForStore { get; set; }
+
+        [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.ExportImportCategoriesUsingCategoryName")]
+        public bool ExportImportCategoriesUsingCategoryName { get; set; }
+        public bool ExportImportCategoriesUsingCategoryName_OverrideForStore { get; set; }
 
         [NopResourceDisplayName("Admin.Configuration.Settings.Catalog.IgnoreDiscounts")]
         public bool IgnoreDiscounts { get; set; }

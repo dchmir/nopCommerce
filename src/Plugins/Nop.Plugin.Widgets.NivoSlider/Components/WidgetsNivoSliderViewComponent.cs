@@ -5,11 +5,12 @@ using Nop.Plugin.Widgets.NivoSlider.Infrastructure.Cache;
 using Nop.Plugin.Widgets.NivoSlider.Models;
 using Nop.Services.Configuration;
 using Nop.Services.Media;
+using Nop.Web.Framework.Components;
 
 namespace Nop.Plugin.Widgets.NivoSlider.Components
 {
     [ViewComponent(Name = "WidgetsNivoSlider")]
-    public class WidgetsNivoSliderViewComponent : ViewComponent
+    public class WidgetsNivoSliderViewComponent : NopViewComponent
     {
         private readonly IStoreContext _storeContext;
         private readonly IStaticCacheManager _cacheManager;
@@ -27,7 +28,7 @@ namespace Nop.Plugin.Widgets.NivoSlider.Components
             this._pictureService = pictureService;
         }
 
-        public IViewComponentResult Invoke(string widgetZone)
+        public IViewComponentResult Invoke(string widgetZone, object additionalData)
         {
             var nivoSliderSettings = _settingService.LoadSetting<NivoSliderSettings>(_storeContext.CurrentStore.Id);
 

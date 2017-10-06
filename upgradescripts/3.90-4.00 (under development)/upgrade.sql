@@ -325,7 +325,70 @@ set @resources='
   </LocaleResource>
   <LocaleResource Name="Sitemap.ProductTags">
     <Value>Product tags</Value>
+  </LocaleResource> 
+  <LocaleResource Name="Admin.System.Warnings.IncompatiblePlugin">
+    <Value></Value>
+  </LocaleResource>  
+  <LocaleResource Name="Admin.System.Warnings.PluginNotLoaded">
+    <Value>''{0}'' plugin is not compatible or cannot be loaded.</Value>
+  </LocaleResource>  
+  <LocaleResource Name="Admin.Configuration.Settings.Catalog.ExportImportProductCategoryBreadcrumb">
+    <Value>Export/Import products with category breadcrumb</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.Catalog.ExportImportProductCategoryBreadcrumb.Hint">
+    <Value>Check if products should be exported/imported with a full category name including names of all its parents.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.GeneralCommon.BlockTitle.AdminArea">
+    <Value>Admin area</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.GeneralCommon.AdminArea.UseRichEditorInMessageTemplates">
+    <Value>Use rich editor on message templates</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.GeneralCommon.AdminArea.UseRichEditorInMessageTemplates.Hint">
+    <Value>Indicates whether to use rich editor on message templates and campaigns details pages.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.GeneralCommon.EnableCssBundling.Hint">
+    <Value>Enable to combine (bundle) multiple CSS files into a single file. Do not enable if you''re running nopCommerce in IIS virtual directory. Currently it doesn''t support web farms. And please note it could take up to two minutes for changes to existing files to be applied (when enabled).</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.GeneralCommon.EnableJsBundling.Hint">
+    <Value>Enable to combine (bundle) multiple JavaScript files into a single file. Currently it doesn''t support web farms. And please note it could take up to two minutes for changes to existing files to be applied (when enabled).</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.Catalog.ExportImportCategoriesUsingCategoryName">
+    <Value>Export/Import categories using name of category</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.Catalog.ExportImportCategoriesUsingCategoryName.Hint">
+    <Value>Check if categories should be exported/imported using name of category.</Value>
+  </LocaleResource>  
+  <LocaleResource Name="Admin.Catalog.Products.Import.CategoriesDontExist">
+    <Value>Categories with the following names don''t exist: {0}</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Catalog.Products.Import.ManufacturersDontExist">
+    <Value>Manufacturers with the following names don''t exist: {0}</Value>
+  </LocaleResource>  
+  <LocaleResource Name="Admin.Catalog.Products.Import.ProductAttributesDontExist">
+    <Value>Product attributes with the following IDs don''t exist: {0}</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Catalog.Categories.Import.CategoriesArentImported">
+    <Value>Categories with the following names aren''t imported - {0}</Value>
   </LocaleResource>   
+  <LocaleResource Name="Admin.Configuration.Plugins.Fields.Delete">
+    <Value>Delete</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Plugins.Fields.Delete.Progress">
+    <Value>Deleting plugin...</Value>
+  </LocaleResource>  
+  <LocaleResource Name="ActivityLog.DeletePlugin">
+    <Value>Deleted a plugin (FriendlyName: ''{0}'')</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Plugins.Deleted">
+    <Value>The plugin has been deleted.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Plugins.Shipping.FixedOrByWeight.Fields.LowerWeightLimit.Hint">
+    <Value>Lower weight limit. This field can be used for "per extra weight unit" scenarios.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Plugins.Description.Step5">
+    <Value></Value>
+  </LocaleResource>
 </Language>
 '
 
@@ -673,10 +736,10 @@ END
 GO
 
 --new setting
-IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [name] = N'adminareasettings.usenestedsettingjavascript')
+IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [name] = N'adminareasettings.usenestedsetting')
 BEGIN
 	INSERT [Setting] ([Name], [Value], [StoreId])
-	VALUES (N'adminareasettings.usenestedsettingjavascript', N'True', 0)
+	VALUES (N'adminareasettings.usenestedsetting', N'True', 0)
 END
 GO
 
@@ -692,5 +755,92 @@ IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [name] = N'commonsettings.sitemapin
 BEGIN
 	INSERT [Setting] ([Name], [Value], [StoreId])
 	VALUES (N'commonsettings.sitemapincludeproducttags', N'False', 0)
+END
+GO
+
+--new setting
+IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [name] = N'catalogsettings.exportimportproductcategorybreadcrumb')
+BEGIN
+	INSERT [Setting] ([Name], [Value], [StoreId])
+	VALUES (N'catalogsettings.exportimportproductcategorybreadcrumb', N'True', 0)
+END
+GO
+
+--new index
+IF NOT EXISTS (SELECT 1 from sys.indexes WHERE [NAME]=N'IX_Product_Category_Mapping_CategoryId' and object_id=object_id(N'[dbo].[Product_Category_Mapping]'))
+BEGIN
+	CREATE NONCLUSTERED INDEX [IX_Product_Category_Mapping_CategoryId] ON [Product_Category_Mapping] (CategoryId ASC)
+END
+GO
+
+--new index
+IF NOT EXISTS (SELECT 1 from sys.indexes WHERE [NAME]=N'IX_Product_Category_Mapping_IsFeaturedProduct' and object_id=object_id(N'[dbo].[Product_Category_Mapping]'))
+BEGIN
+	CREATE NONCLUSTERED INDEX [IX_Product_Category_Mapping_IsFeaturedProduct] ON [Product_Category_Mapping] (IsFeaturedProduct ASC)
+END
+GO
+
+--new index
+IF NOT EXISTS (SELECT 1 from sys.indexes WHERE [NAME]=N'IX_Product_Manufacturer_Mapping_ManufacturerId' and object_id=object_id(N'[dbo].[Product_Manufacturer_Mapping]'))
+BEGIN
+	CREATE NONCLUSTERED INDEX [IX_Product_Manufacturer_Mapping_ManufacturerId] ON [Product_Manufacturer_Mapping] (ManufacturerId ASC)
+END
+GO
+
+--new index
+IF NOT EXISTS (SELECT 1 from sys.indexes WHERE [NAME]=N'IX_Product_Manufacturer_Mapping_IsFeaturedProduct' and object_id=object_id(N'[dbo].[Product_Manufacturer_Mapping]'))
+BEGIN
+	CREATE NONCLUSTERED INDEX [IX_Product_Manufacturer_Mapping_IsFeaturedProduct] ON [Product_Manufacturer_Mapping] (IsFeaturedProduct ASC)
+END
+GO
+
+--new index
+IF NOT EXISTS (SELECT 1 from sys.indexes WHERE [NAME]=N'IX_Product_Manufacturer_Mapping_ProductId' and object_id=object_id(N'[dbo].[Product_Manufacturer_Mapping]'))
+BEGIN
+	CREATE NONCLUSTERED INDEX [IX_Product_Manufacturer_Mapping_ProductId] ON [Product_Manufacturer_Mapping] (ProductId ASC)
+END
+GO
+
+--new index
+IF NOT EXISTS (SELECT 1 from sys.indexes WHERE [NAME]=N'IX_Customer_CustomerRole_Mapping_Customer_Id' and object_id=object_id(N'[dbo].[Customer_CustomerRole_Mapping]'))
+BEGIN
+	CREATE NONCLUSTERED INDEX [IX_Customer_CustomerRole_Mapping_Customer_Id] ON [Customer_CustomerRole_Mapping] (Customer_Id ASC)
+END
+GO
+
+--new index
+IF NOT EXISTS (SELECT 1 from sys.indexes WHERE [NAME]=N'IX_Shipment_OrderId' and object_id=object_id(N'[dbo].[Shipment]'))
+BEGIN
+	CREATE NONCLUSTERED INDEX [IX_Shipment_OrderId] ON [Shipment] (OrderId ASC)
+END
+GO
+
+--new index
+IF NOT EXISTS (SELECT 1 from sys.indexes WHERE [NAME]=N'IX_Product_Delete_Id' and object_id=object_id(N'[dbo].[Product]'))
+BEGIN
+	CREATE NONCLUSTERED INDEX [IX_Product_Delete_Id] ON [Product] (Deleted ASC, Id ASC)
+END
+GO
+
+--new index
+IF NOT EXISTS (SELECT 1 from sys.indexes WHERE [NAME]=N'IX_ShoppingCartItem_CustomerId' and object_id=object_id(N'[dbo].[ShoppingCartItem]'))
+BEGIN
+	CREATE NONCLUSTERED INDEX [IX_ShoppingCartItem_CustomerId] ON [ShoppingCartItem] (CustomerId ASC)
+END
+GO
+
+--new setting
+IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [name] = N'catalogsettings.exportimportcategoriesusingcategoryname')
+BEGIN
+	INSERT [Setting] ([Name], [Value], [StoreId])
+	VALUES (N'catalogsettings.exportimportcategoriesusingcategoryname', N'False', 0)
+END
+GO
+
+--new activity types
+IF NOT EXISTS (SELECT 1 FROM [ActivityLogType] WHERE [SystemKeyword] = N'DeletePlugin')
+BEGIN
+	INSERT [ActivityLogType] ([SystemKeyword], [Name], [Enabled])
+	VALUES (N'DeletePlugin', N'Delete a plugin', N'true')
 END
 GO

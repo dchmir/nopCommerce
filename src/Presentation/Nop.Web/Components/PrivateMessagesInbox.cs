@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Nop.Web.Factories;
+using Nop.Web.Framework.Components;
 
 namespace Nop.Web.Components
 {
-    public class PrivateMessagesInboxViewComponent : ViewComponent
+    public class PrivateMessagesInboxViewComponent : NopViewComponent
     {
         private readonly IPrivateMessagesModelFactory _privateMessagesModelFactory;
 
@@ -12,9 +13,9 @@ namespace Nop.Web.Components
             this._privateMessagesModelFactory = privateMessagesModelFactory;
         }
 
-        public IViewComponentResult Invoke(int page, string tab)
+        public IViewComponentResult Invoke(int pageNumber, string tab)
         {
-            var model = _privateMessagesModelFactory.PrepareInboxModel(page, tab);
+            var model = _privateMessagesModelFactory.PrepareInboxModel(pageNumber, tab);
             return View(model);
         }
     }

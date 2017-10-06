@@ -5974,7 +5974,7 @@ namespace Nop.Services.Installation
                 RichEditorAllowJavaScript = false,
                 UseRichEditorInMessageTemplates = false,
                 UseIsoDateTimeConverterInJson = true,
-                UseNestedSettingJavascript = true
+                UseNestedSetting = true
             });
 
 
@@ -11453,6 +11453,12 @@ namespace Nop.Services.Installation
                     SystemKeyword = "DeleteOrder",
                     Enabled = true,
                     Name = "Delete an order"
+                },
+                new ActivityLogType
+                {
+                    SystemKeyword = "DeletePlugin",
+                    Enabled = true,
+                    Name = "Delete a plugin"
                 },
                 new ActivityLogType
                 {
